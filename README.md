@@ -33,8 +33,8 @@ package main
 
 import (
     "context"
-    "github.com/safe-global/safe-core-sdk-golang/protocol"
-    "github.com/safe-global/safe-core-sdk-golang/api"
+    "github.com/vikkkko/safe-core-sdk-golang/protocol"
+    "github.com/vikkkko/safe-core-sdk-golang/api"
 )
 
 func main() {
@@ -75,9 +75,7 @@ safe-core-sdk-golang/
 │   └── types.go           # Safe交易和签名类型
 ├── examples/              # 示例代码
 │   ├── create_multisig_wallet.go      # 多签钱包创建
-│   ├── test_new_multisig_wallet.go    # 钱包测试验证
-│   ├── transaction_workflow.go       # 交易工作流程
-│   └── erc20_abi_demo.go             # ERC20操作演示
+│   └── transaction_workflow.go       # 交易工作流程
 ├── MULTISIG_WORKFLOW.md   # 多签钱包完整工作流程
 └── README.md              # 项目说明
 ```
@@ -96,19 +94,7 @@ go run ./examples/create_multisig_wallet.go
 - 📝 生成部署交易数据
 - ⛽ Gas费用估算
 
-### 2. 测试多签钱包
-
-```bash
-go run ./examples/test_new_multisig_wallet.go
-```
-
-测试已部署的Safe钱包：
-- ✅ 验证钱包配置
-- 📤 创建测试交易
-- ✍️  签名和提交交易
-- 📊 跟踪交易状态
-
-### 3. 完整交易工作流程
+### 2. 完整交易工作流程
 
 ```bash
 go run ./examples/transaction_workflow.go
@@ -120,19 +106,7 @@ go run ./examples/transaction_workflow.go
 - 🔐 EIP-712交易哈希计算
 - ✍️  Safe owner签名验证
 - 📤 提交到Safe Transaction Service
-- ✅ **成功案例** - 实际API调用成功！
 
-### 4. ERC20代币操作
-
-```bash
-go run ./examples/erc20_abi_demo.go
-```
-
-展示基于ABI的ERC20代币操作：
-- 🔧 ABI编码/解码 (`transfer`, `approve`, `transferFrom`, `balanceOf`)
-- 💰 代币数量格式化和解析
-- 🎯 函数选择器分析
-- ✨ 类型安全的代币操作
 
 ## 🔧 核心组件
 
