@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yinwei/safe-core-sdk-golang/api"
-	"github.com/yinwei/safe-core-sdk-golang/protocol"
-	"github.com/yinwei/safe-core-sdk-golang/types"
+	"github.com/vikkkko/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 // Integration tests require real network connections and API keys

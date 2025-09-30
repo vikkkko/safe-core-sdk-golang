@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/yinwei/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/api"
 )
 
 func main() {

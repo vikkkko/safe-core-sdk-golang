@@ -3,7 +3,7 @@ package unit
 import (
 	"testing"
 
-	"github.com/yinwei/safe-core-sdk-golang/types"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 func TestSafeVersion(t *testing.T) {

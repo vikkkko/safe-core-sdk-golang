@@ -7,9 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/yinwei/safe-core-sdk-golang/protocol/managers"
-	"github.com/yinwei/safe-core-sdk-golang/protocol/utils"
-	"github.com/yinwei/safe-core-sdk-golang/types"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/managers"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 // SafeConfig represents the configuration for connecting to a Safe

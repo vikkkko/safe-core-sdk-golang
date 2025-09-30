@@ -10,10 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/yinwei/safe-core-sdk-golang/api"
-	"github.com/yinwei/safe-core-sdk-golang/protocol"
-	"github.com/yinwei/safe-core-sdk-golang/protocol/utils"
-	"github.com/yinwei/safe-core-sdk-golang/types"
+	"github.com/vikkkko/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 func main() {
@@ -22,12 +22,13 @@ func main() {
 
 	// 配置参数
 	safeAddress := "0x447d4227d88D6A7fB1486879be24Be00418A5fB7"
-	rpcURL := ""
+	rpcURL := "https://ethereum-sepolia-rpc.publicnode.com"
 	chainID := int64(11155111) // Sepolia测试网
-	apiKey := ""
+	apiKey := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzYWZlLWF1dGgtc2VydmljZSIsInN1YiI6ImVlMDM0ZjhkZmVlZDRjMGViZWE2YWJjYmNkOTg4NWU0XzNiMmUyNTc4ZDBiNzQyNmVhOGU4ZDhkODIyMzM2OWM2Iiwia2V5IjoiZWUwMzRmOGRmZWVkNGMwZWJlYTZhYmNiY2Q5ODg1ZTRfM2IyZTI1NzhkMGI3NDI2ZWE4ZThkOGQ4MjIzMzY5YzYiLCJhdWQiOlsic2FmZS1hdXRoLXNlcnZpY2UiXSwiZXhwIjoxNzg1NDk2NjgyLCJkYXRhIjp7fX0.NSGaj4SQ4PQwRs4_MnCmMssHUaftsY-UQcoGWRroTVBA6OIhDsvfrOIh-E0blRmKbAk9qZX-ZLOpuOfz2wQUMA"
+
 	// 警告：生产环境中绝不要使用真实私钥！
 	// 这里仅用于演示目的
-	testPrivateKey := "" // 测试私钥
+	testPrivateKey := "b9e6456700815cac9123178293e9e1b7bc92198b48785a4166b345c51886ca19" // 测试私钥
 
 	ctx := context.Background()
 
