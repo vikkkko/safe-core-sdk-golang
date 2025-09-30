@@ -1,10 +1,8 @@
 module github.com/vikkkko/safe-core-sdk-golang
 
-go 1.24.0
+go 1.23
 
-toolchain go1.24.7
-
-require github.com/ethereum/go-ethereum v1.16.4
+require github.com/ethereum/go-ethereum v1.13.15
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
