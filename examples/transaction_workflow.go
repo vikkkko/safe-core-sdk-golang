@@ -10,10 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/yinwei/safe-core-sdk-golang/api"
-	"github.com/yinwei/safe-core-sdk-golang/protocol"
-	"github.com/yinwei/safe-core-sdk-golang/protocol/utils"
-	"github.com/yinwei/safe-core-sdk-golang/types"
+	"github.com/vikkkko/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 
 	// 配置参数
 	safeAddress := "0x447d4227d88D6A7fB1486879be24Be00418A5fB7"
-	rpcURL := ""
+	rpcURL := "https://ethereum-sepolia-rpc.publicnode.com"
 	chainID := int64(11155111) // Sepolia测试网
 	apiKey := ""
 	// 警告：生产环境中绝不要使用真实私钥！

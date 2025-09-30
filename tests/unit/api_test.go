@@ -3,7 +3,7 @@ package unit
 import (
 	"testing"
 
-	"github.com/yinwei/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/api"
 )
 
 func TestSafeApiKitConfig(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/yinwei/safe-core-sdk-golang
+module github.com/vikkkko/safe-core-sdk-golang
 
 go 1.24.0
 

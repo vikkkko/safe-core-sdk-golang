@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/yinwei/safe-core-sdk-golang/protocol/contracts"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/contracts"
 )
 
 // FallbackHandlerManager manages Safe fallback handlers
