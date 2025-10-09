@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -189,7 +190,7 @@ func TestApiClientIntegration(t *testing.T) {
 			return
 		}
 
-		t.Logf("API Safe info: Address=%s, Nonce=%d, Threshold=%d, Owners=%d",
+		t.Logf("API Safe info: Address=%s, Nonce=%s, Threshold=%d, Owners=%d",
 			info.Address, info.Nonce, info.Threshold, len(info.Owners))
 
 		if info.Address != safeAddress {
@@ -272,7 +273,7 @@ func TestSafeAddressPrediction(t *testing.T) {
 			},
 		}
 
-		predictedAddress, err := protocol.PredictSafeAddress(config, 1) // Mainnet
+		predictedAddress, err := protocol.PredictSafeAddress(config, big.NewInt(1)) // Mainnet
 		if err != nil {
 			t.Errorf("Failed to predict Safe address: %v", err)
 			return

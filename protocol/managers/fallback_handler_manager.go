@@ -50,6 +50,17 @@ func (fhm *FallbackHandlerManager) CreateSetFallbackHandlerTx(ctx context.Contex
 		return nil, fmt.Errorf("invalid fallback handler address: %s", params.FallbackHandlerAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Pack the setFallbackHandler function call
+	data, err := abi.Pack("setFallbackHandler", common.HexToAddress(params.FallbackHandlerAddress))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack setFallbackHandler call: %w", err)
+	}
+
+	return data, nil
 }

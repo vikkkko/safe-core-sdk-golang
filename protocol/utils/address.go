@@ -68,28 +68,44 @@ func IsSameAddress(addr1, addr2 string) bool {
 }
 
 // CalculateProxyAddress calculates the CREATE2 address for a proxy
+// This matches SafeProxyFactory.createProxyWithNonce logic
 func CalculateProxyAddress(
 	factory common.Address,
 	singleton common.Address,
 	initializer []byte,
 	saltNonce *big.Int,
 ) (common.Address, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would:
-	// 1. Get the proxy creation code from the factory
-	// 2. Calculate the salt from saltNonce and keccak256(initializer)
-	// 3. Calculate the CREATE2 address
+	// Step 1: Calculate salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce))
+	// This matches the Solidity code: bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce));
+	initializerHash := crypto.Keccak256(initializer)
 
-	// Placeholder calculation
-	salt := crypto.Keccak256Hash(saltNonce.Bytes(), crypto.Keccak256(initializer))
+	// Encode saltNonce as bytes32 (32 bytes, big-endian)
+	saltNonceBytes := make([]byte, 32)
+	saltNonce.FillBytes(saltNonceBytes)
 
-	// This is a simplified version - real implementation would use the actual proxy bytecode
-	initCodeHash := crypto.Keccak256Hash([]byte("placeholder"))
+	// Pack initializerHash and saltNonce
+	saltData := append(initializerHash, saltNonceBytes...)
+	salt := crypto.Keccak256(saltData)
 
-	// CREATE2 address calculation: keccak256(0xff ++ factory ++ salt ++ keccak256(initCode))[12:]
-	data := append([]byte{0xff}, factory.Bytes()...)
-	data = append(data, salt.Bytes()...)
-	data = append(data, initCodeHash.Bytes()...)
+	// Step 2: Calculate init code hash
+	// This matches: abi.encodePacked(type(SafeProxy).creationCode, uint256(uint160(_singleton)))
+	// SafeProxy creation code (from the factory contract's proxyCreationCode() method)
+	proxyCreationCode := common.FromHex("0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea2646970667358221220d1429297349653a4918076d650332de1a1068c5f3e07c5c82360c277770b955264736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564")
+
+	// Encode singleton address as uint256 (32 bytes, left-padded)
+	singletonUint256 := make([]byte, 32)
+	copy(singletonUint256[12:], singleton.Bytes()) // address is 20 bytes, so pad with 12 zeros on left
+
+	// Combine creation code with singleton address
+	initCode := append(proxyCreationCode, singletonUint256...)
+	initCodeHash := crypto.Keccak256(initCode)
+
+	// Step 3: Calculate CREATE2 address
+	// Formula: keccak256(0xff ++ factory ++ salt ++ keccak256(initCode))[12:]
+	data := []byte{0xff}
+	data = append(data, factory.Bytes()...)
+	data = append(data, salt...)
+	data = append(data, initCodeHash...)
 
 	hash := crypto.Keccak256(data)
 	return common.BytesToAddress(hash[12:]), nil

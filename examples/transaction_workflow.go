@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
@@ -6,10 +9,12 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/joho/godotenv"
 	"github.com/vikkkko/safe-core-sdk-golang/api"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
@@ -17,17 +22,38 @@ import (
 )
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found, using environment variables")
+	}
+
 	fmt.Println("🔐 Safe交易工作流程演示")
 	fmt.Println("======================")
 
-	// 配置参数
-	safeAddress := "0x447d4227d88D6A7fB1486879be24Be00418A5fB7"
-	rpcURL := "https://ethereum-sepolia-rpc.publicnode.com"
-	chainID := int64(11155111) // Sepolia测试网
-	apiKey := ""
-	// 警告：生产环境中绝不要使用真实私钥！
-	// 这里仅用于演示目的
-	testPrivateKey := "" // 测试私钥
+	// 从环境变量读取配置
+	safeAddress := os.Getenv("SAFE_ADDRESS")
+	if safeAddress == "" {
+		log.Fatal("SAFE_ADDRESS not set in .env")
+	}
+
+	rpcURL := os.Getenv("RPC_URL")
+	if rpcURL == "" {
+		log.Fatal("RPC_URL not set in .env")
+	}
+
+	chainIDStr := os.Getenv("CHAIN_ID")
+	chainID, err := strconv.ParseInt(chainIDStr, 10, 64)
+	if err != nil || chainID == 0 {
+		chainID = 11155111 // 默认 Sepolia
+		log.Printf("Using default CHAIN_ID: %d", chainID)
+	}
+
+	apiKey := os.Getenv("SAFE_API_KEY")
+
+	testPrivateKey := os.Getenv("OWNER_PRIVATE_KEY")
+	if testPrivateKey == "" {
+		log.Fatal("OWNER_PRIVATE_KEY not set in .env")
+	}
 
 	ctx := context.Background()
 
@@ -65,8 +91,8 @@ func main() {
 	fmt.Printf(" ✅ (阈值: %d/%d, 随机数: %d)\n", safeInfo.Threshold, len(safeInfo.Owners), currentNonce)
 
 	// 第三步：创建ERC20转账交易
-	fmt.Printf("📝 创建USDC转账交易...")
-	usdcAddress := "0xEDC9b422dC055939F63e9Dc808ACEc05B515C28e"      // Sepolia USDC
+	fmt.Printf("📝 创建USDT转账交易...")
+	usdtAddress := "0xAD2B0439ed98F50eDEB0e04F064d492bAFDAd73B"      // Sepolia USDC
 	recipientAddress := "0x9C126aa4Eb6D110D646139969774F2c5b64dD279" // 接收地址
 	transferAmount := big.NewInt(1000000)                            // 1 USDC (6位小数)
 
@@ -78,7 +104,7 @@ func main() {
 	fmt.Printf(" ✅\n")
 
 	txData := types.SafeTransactionDataPartial{
-		To:    usdcAddress,                             // USDC合约地址
+		To:    usdtAddress,                             // USDC合约地址
 		Value: "0",                                     // ERC20转账无需ETH
 		Data:  "0x" + hex.EncodeToString(transferData), // ERC20转账调用数据
 		Nonce: &currentNonce,                           // 使用当前随机数
@@ -89,12 +115,39 @@ func main() {
 		log.Fatalf("创建交易失败: %v", err)
 	}
 
-	// 第四步：计算交易哈希
-	fmt.Printf("🔐 计算交易哈希...")
-	txHash, err := calculateSafeTransactionHash(transaction.Data, safeAddress, chainID)
+	// 第四步：从Safe合约获取交易哈希（确保与链上一致）
+	fmt.Printf("🔐 从Safe合约获取交易哈希...")
+
+	// 解析交易数据字段
+	value := new(big.Int)
+	value.SetString(transaction.Data.Value, 10)
+
+	safeTxGas := new(big.Int)
+	safeTxGas.SetString(transaction.Data.SafeTxGas, 10)
+
+	baseGas := new(big.Int)
+	baseGas.SetString(transaction.Data.BaseGas, 10)
+
+	gasPrice := new(big.Int)
+	gasPrice.SetString(transaction.Data.GasPrice, 10)
+
+	txHashBytes, err := safeClient.GetTransactionHash(
+		ctx,
+		common.HexToAddress(transaction.Data.To),
+		value,
+		common.FromHex(transaction.Data.Data),
+		uint8(transaction.Data.Operation),
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		common.HexToAddress(transaction.Data.GasToken),
+		common.HexToAddress(transaction.Data.RefundReceiver),
+		new(big.Int).SetUint64(transaction.Data.Nonce),
+	)
 	if err != nil {
-		log.Fatalf("计算交易哈希失败: %v", err)
+		log.Fatalf("获取交易哈希失败: %v", err)
 	}
+	txHash := txHashBytes[:]
 	fmt.Printf(" ✅\n")
 
 	// 第五步：签名交易
@@ -157,7 +210,12 @@ func main() {
 			fmt.Printf(" ❌\n❌ 提交失败: %v\n", err)
 		} else {
 			fmt.Printf(" ✅\n✅ 交易提案已提交!\n")
-			fmt.Printf("🔗 交易哈希: %s\n", response.SafeTxHash)
+			// 使用响应中的哈希，如果为空则使用我们计算的哈希
+			displayHash := response.SafeTxHash
+			if displayHash == "" {
+				displayHash = "0x" + safeTxHash
+			}
+			fmt.Printf("🔗 SAFE Transaction Hash: %s\n", displayHash)
 			fmt.Printf("📊 需要确认: %d/%d\n", len(response.Confirmations), safeInfo.Threshold)
 		}
 	} else {
@@ -165,38 +223,4 @@ func main() {
 	}
 
 	fmt.Println("\n✅ Safe交易工作流程演示完成!")
-}
-
-// calculateSafeTransactionHash 计算需要签名的交易哈希
-func calculateSafeTransactionHash(txData types.SafeTransactionData, safeAddress string, chainID int64) ([]byte, error) {
-	// 这是一个简化实现
-	// 实际实现中应该使用Safe合约的getTransactionHash方法
-
-	to := common.HexToAddress(txData.To)
-	value, _ := new(big.Int).SetString(txData.Value, 10)
-	data := common.FromHex(txData.Data)
-	operation := uint8(txData.Operation)
-	safeTxGas, _ := new(big.Int).SetString(txData.SafeTxGas, 10)
-	baseGas, _ := new(big.Int).SetString(txData.BaseGas, 10)
-	gasPrice, _ := new(big.Int).SetString(txData.GasPrice, 10)
-	gasToken := common.HexToAddress(txData.GasToken)
-	refundReceiver := common.HexToAddress(txData.RefundReceiver)
-	nonce := new(big.Int).SetUint64(txData.Nonce)
-	safeAddr := common.HexToAddress(safeAddress)
-	chainIDBig := big.NewInt(chainID)
-
-	return utils.CalculateTransactionHash(
-		safeAddr,
-		to,
-		value,
-		data,
-		operation,
-		safeTxGas,
-		baseGas,
-		gasPrice,
-		gasToken,
-		refundReceiver,
-		nonce,
-		chainIDBig,
-	)
 }

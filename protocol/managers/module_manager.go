@@ -81,8 +81,19 @@ func (mm *ModuleManager) CreateEnableModuleTx(ctx context.Context, params Enable
 		return nil, fmt.Errorf("module %s is already enabled", params.ModuleAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Pack the enableModule function call
+	data, err := abi.Pack("enableModule", common.HexToAddress(params.ModuleAddress))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack enableModule call: %w", err)
+	}
+
+	return data, nil
 }
 
 // DisableModuleTxParams represents parameters for disabling a module
@@ -113,6 +124,39 @@ func (mm *ModuleManager) CreateDisableModuleTx(ctx context.Context, params Disab
 		return nil, fmt.Errorf("module %s is not enabled", params.ModuleAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get all modules to find previous module in linked list
+	modules, err := mm.GetModules(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get modules: %w", err)
+	}
+
+	// Find previous module in the linked list
+	sentinel := common.HexToAddress("0x0000000000000000000000000000000000000001")
+	moduleToDisable := common.HexToAddress(params.ModuleAddress)
+	var prevModule common.Address = sentinel
+
+	for i, module := range modules {
+		if module == moduleToDisable {
+			if i == 0 {
+				prevModule = sentinel
+			} else {
+				prevModule = modules[i-1]
+			}
+			break
+		}
+	}
+
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Pack the disableModule function call
+	data, err := abi.Pack("disableModule", prevModule, moduleToDisable)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack disableModule call: %w", err)
+	}
+
+	return data, nil
 }

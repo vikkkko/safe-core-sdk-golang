@@ -114,28 +114,73 @@ func EstimateTxGas(txData types.SafeTransactionData) (*big.Int, error) {
 
 	// Simple estimation based on data size
 	dataSize := len(common.FromHex(txData.Data))
-	baseGas := big.NewInt(21000) // Base transaction gas
+	baseGas := big.NewInt(21000)                // Base transaction gas
 	dataGas := big.NewInt(int64(dataSize * 68)) // Rough estimation for data gas
 
 	return new(big.Int).Add(baseGas, dataGas), nil
 }
 
 // EstimateSafeTxGas estimates Safe transaction gas
+// This provides a heuristic estimation based on transaction characteristics
+// For accurate estimation in production, use Safe Transaction Service API or implement
+// contract simulation with eth_estimateGas
 func EstimateSafeTxGas(txData types.SafeTransactionData) (*big.Int, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would estimate the gas needed
-	// for the Safe-specific operations (signature verification, etc.)
+	// Base gas for Safe transaction execution
+	safeTxGas := big.NewInt(21000) // Base transaction gas
 
-	return big.NewInt(0), nil
+	// Add gas for data
+	dataBytes := common.FromHex(txData.Data)
+	dataSize := int64(len(dataBytes))
+
+	// Gas cost for data: 4 gas per zero byte, 16 gas per non-zero byte (post-EIP-2028)
+	var dataGas int64
+	for _, b := range dataBytes {
+		if b == 0 {
+			dataGas += 4
+		} else {
+			dataGas += 16
+		}
+	}
+
+	safeTxGas.Add(safeTxGas, big.NewInt(dataGas))
+
+	// Add extra gas for contract execution overhead
+	// This accounts for CALL opcode and Safe contract logic
+	if dataSize > 0 {
+		// If there's data, it's likely a contract call
+		// Add ~50k gas for typical contract interaction
+		safeTxGas.Add(safeTxGas, big.NewInt(50000))
+	}
+
+	// For delegate calls, add extra gas buffer for potential complexity
+	if txData.Operation == types.DelegateCall {
+		safeTxGas.Add(safeTxGas, big.NewInt(10000))
+	}
+
+	return safeTxGas, nil
 }
 
 // EstimateBaseGas estimates base gas for Safe operations
-func EstimateBaseGas() (*big.Int, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would estimate the base gas
-	// needed for Safe contract operations
+// This includes the gas needed for signature verification, nonce management, etc.
+func EstimateBaseGas(numSignatures int) (*big.Int, error) {
+	// Base overhead for Safe transaction
+	// This includes:
+	// - checkSignatures: ~1000 gas per signature
+	// - Nonce increment: ~5000 gas
+	// - Event emission: ~1500 gas
+	// - Other Safe contract overhead: ~10000 gas
 
-	return big.NewInt(0), nil
+	baseGas := big.NewInt(15000) // Fixed base overhead
+
+	// Add gas per signature
+	// Each ECDSA signature verification costs approximately:
+	// - ecrecover precompile: 3000 gas
+	// - Data loading and checking: 1000 gas
+	// - Contract storage reads: 2100 gas per SLOAD
+	signatureGas := int64(numSignatures * 6000)
+	baseGas.Add(baseGas, big.NewInt(signatureGas))
+
+	return baseGas, nil
 }
 
 // ValidateTransactionData validates Safe transaction data
@@ -175,7 +220,6 @@ func ValidateTransactionData(txData types.SafeTransactionData) error {
 
 	return nil
 }
-
 
 // ParseTransactionValue parses a string value to big.Int
 func ParseTransactionValue(value string) (*big.Int, error) {

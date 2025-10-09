@@ -156,7 +156,7 @@ func TestProposeTransactionProps(t *testing.T) {
 func TestSafeInfoResponse(t *testing.T) {
 	response := api.SafeInfoResponse{
 		Address:         "0x1234567890123456789012345678901234567890",
-		Nonce:           5,
+		Nonce:           "5",
 		Threshold:       2,
 		Owners:          []string{"0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"},
 		MasterCopy:      "0x3333333333333333333333333333333333333333",
@@ -170,8 +170,8 @@ func TestSafeInfoResponse(t *testing.T) {
 		t.Error("Address not set correctly")
 	}
 
-	if response.Nonce != 5 {
-		t.Errorf("Expected Nonce to be 5, got %d", response.Nonce)
+	if response.Nonce != "5" {
+		t.Errorf("Expected Nonce to be \"5\", got %s", response.Nonce)
 	}
 
 	if response.Threshold != 2 {

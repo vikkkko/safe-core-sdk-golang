@@ -1,32 +1,77 @@
 # Safe Core SDK for Go
 
-🔐 一个完整的Go语言版本的Safe多签钱包SDK，移植自官方TypeScript版本。
+🔐 Go 语言版本的 Safe 多签钱包 SDK，提供完整的钱包创建、交易签名和 API 集成功能。
 
-## ✨ 功能特性
+## ✨ 核心功能
 
-### 🏗️ 核心功能
-- ✅ **Safe钱包创建** - 使用CREATE2预测地址，支持多签配置
-- ✅ **交易签名** - EIP-712标准签名，与Safe服务完全兼容
-- ✅ **API集成** - Safe Transaction Service完整API支持
-- ✅ **ERC20支持** - 基于ABI的代币操作，类型安全
-
-### 🔧 技术特性
-- 🎯 **EIP-712兼容** - 正确的类型化数据签名
-- 🛡️ **类型安全** - 完整的Go类型定义和验证
-- 📦 **ABI编码** - 使用go-ethereum标准ABI包
-- 🌐 **多网络** - 支持主网、测试网等多个网络
+- ✅ **Safe 钱包创建** - CREATE2 地址预测、多签配置、工厂部署
+- ✅ **交易管理** - EIP-712 签名、交易哈希计算、多签收集
+- ✅ **API 集成** - Safe Transaction Service 完整支持
+- ✅ **ERC20 操作** - 基于 ABI 的代币转账、授权、查询
+- ✅ **类型安全** - 完整的 Go 类型定义和编译时检查
 
 ## 🚀 快速开始
 
-### 安装依赖
+### 1. 安装
 
 ```bash
-go mod init your-project
+go get github.com/vikkkko/safe-core-sdk-golang
 go get github.com/ethereum/go-ethereum
-# 注意：实际使用时需要将import路径替换为实际的包路径
 ```
 
-### 基本使用
+### 2. 配置环境
+
+复制 `.env.example` 为 `.env` 并填入配置：
+
+```bash
+# Ethereum RPC
+RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+CHAIN_ID=11155111
+
+# Safe 配置
+SAFE_ADDRESS=0x9aE1311B4c25c9F95b5a5De5AD1b5e6D89dC3e25
+
+# 私钥（仅用于测试网）
+DEPLOYER_PRIVATE_KEY=your_private_key_here
+OWNER_PRIVATE_KEY=your_private_key_here
+
+# Safe API
+SAFE_API_KEY=your_api_key_here
+```
+
+### 3. 创建多签钱包
+
+```go
+package main
+
+import (
+    "math/big"
+    "github.com/ethereum/go-ethereum/common"
+    "github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+)
+
+func main() {
+    // 配置 2/3 多签钱包
+    owners := []common.Address{
+        common.HexToAddress("0x9C126aa4Eb6D110D646139969774F2c5b64dD279"),
+        common.HexToAddress("0xeB7E951F2D1A38188762dF12E0703aE16F76ab73"),
+        common.HexToAddress("0x74f4EFFb0B538BAec703346b03B6d9292f53A4CD"),
+    }
+
+    // 准备部署
+    callData, _ := utils.PrepareSafeDeployment(utils.DeploySafeConfig{
+        Owners:           owners,
+        Threshold:        2,
+        FactoryAddress:   common.HexToAddress("0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"),
+        SingletonAddress: common.HexToAddress("0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"),
+        SaltNonce:        big.NewInt(0),
+    })
+
+    // 使用 callData 发送交易到工厂合约即可部署 Safe
+}
+```
+
+### 4. 管理 Safe 钱包
 
 ```go
 package main
@@ -38,23 +83,22 @@ import (
 )
 
 func main() {
-    // 创建Safe客户端
+    // 初始化 Safe 客户端
     safeClient, _ := protocol.NewSafe(protocol.SafeConfig{
         SafeAddress: "0x447d4227d88D6A7fB1486879be24Be00418A5fB7",
-        RpcURL:      "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
+        RpcURL:      "https://sepolia.infura.io/v3/YOUR_KEY",
         ChainID:     11155111,
     })
 
-    // 创建API客户端
+    // 初始化 API 客户端
     apiClient, _ := api.NewSafeApiKit(api.SafeApiKitConfig{
         ChainID: 11155111,
-        ApiKey:  "YOUR_SAFE_API_KEY",
+        ApiKey:  "YOUR_API_KEY",
     })
 
-    // 获取Safe信息
-    safeInfo, _ := apiClient.GetSafeInfo(context.Background(), "0x447d4227d88D6A7fB1486879be24Be00418A5fB7")
-    fmt.Printf("Owners: %v\n", safeInfo.Owners)
-    fmt.Printf("Threshold: %d\n", safeInfo.Threshold)
+    // 获取 Safe 信息
+    ctx := context.Background()
+    safeInfo, _ := apiClient.GetSafeInfo(ctx, "0x447d4227d88D6A7fB1486879be24Be00418A5fB7")
 }
 ```
 
@@ -62,108 +106,133 @@ func main() {
 
 ```
 safe-core-sdk-golang/
-├── api/                    # Safe Transaction Service API客户端
-│   ├── client.go          # HTTP客户端和API调用
-│   └── types.go           # API响应类型定义
-├── protocol/              # Safe协议交互
-│   ├── safe.go            # Safe客户端主要功能
+├── api/                    # Safe Transaction Service API 客户端
+│   ├── client.go          # HTTP 客户端和 API 调用
+│   └── types.go           # API 响应类型定义
+├── protocol/              # Safe 协议交互
+│   ├── safe.go            # Safe 客户端主要功能
+│   ├── contracts/         # 合约绑定（自动生成）
+│   ├── managers/          # 交易和签名管理器
 │   └── utils/             # 工具函数
-│       ├── signatures.go  # EIP-712签名和验证
-│       ├── erc20.go       # ERC20 ABI工具
-│       └── transactions.go # 交易处理工具
+│       ├── safe.go            # Safe 初始化工具
+│       ├── safe_factory.go    # 工厂部署工具
+│       ├── signatures.go      # EIP-712 签名
+│       ├── erc20.go           # ERC20 ABI 工具
+│       └── address.go         # CREATE2 地址计算
 ├── types/                 # 核心类型定义
-│   └── types.go           # Safe交易和签名类型
+│   └── types.go           # Safe 交易和签名类型
 ├── examples/              # 示例代码
-│   ├── create_multisig_wallet.go      # 多签钱包创建
-│   └── transaction_workflow.go       # 交易工作流程
-├── MULTISIG_WORKFLOW.md   # 多签钱包完整工作流程
-└── README.md              # 项目说明
+│   ├── create_multisig_wallet.go  # 创建多签钱包
+│   └── transaction_workflow.go    # 交易工作流程
+└── tests/                 # 测试
+    ├── unit/              # 单元测试
+    └── integration/       # 集成测试
 ```
 
-## 🧪 示例代码
+## 📚 示例代码
 
-### 1. 创建多签钱包
+### 创建多签钱包
 
 ```bash
-go run ./examples/create_multisig_wallet.go
+go run examples/create_multisig_wallet.go
 ```
 
-演示如何配置和创建新的Safe多签钱包：
-- 📋 配置多个所有者和签名阈值
-- 🔮 预测Safe合约地址 (CREATE2)
-- 📝 生成部署交易数据
-- ⛽ Gas费用估算
+演示完整的钱包创建流程：
+- 配置多个所有者和签名阈值
+- 预测 Safe 合约地址（CREATE2）
+- 生成部署交易数据
+- 部署并验证
 
-### 2. 完整交易工作流程
+### 交易工作流程
 
 ```bash
-go run ./examples/transaction_workflow.go
+go run examples/transaction_workflow.go
 ```
 
-演示完整的ERC20转账流程：
-- 🔧 Safe客户端初始化
-- 💰 创建USDC转账交易
-- 🔐 EIP-712交易哈希计算
-- ✍️  Safe owner签名验证
-- 📤 提交到Safe Transaction Service
+演示完整的 ERC20 转账流程：
+- Safe 客户端初始化
+- 创建 USDC 转账交易
+- EIP-712 交易哈希计算
+- Safe owner 签名验证
+- 提交到 Safe Transaction Service
 
+## 🛠️ 主要组件
 
-## 🔧 核心组件
+### Protocol Kit (`protocol/`)
+- **Safe 客户端** - 连接和管理 Safe 钱包
+- **交易创建** - 构建 Safe 兼容的交易
+- **EIP-712 签名** - 符合 Safe 标准的交易签名
 
-### Protocol Kit
-- **Safe客户端管理** - 连接和配置Safe钱包
-- **交易创建** - 构建Safe兼容的交易数据
-- **EIP-712签名** - 符合Safe标准的交易哈希和签名
+### API Kit (`api/`)
+- **Safe Transaction Service** - 官方 API 集成
+- **交易管理** - 提案、确认、查询交易
+- **Safe 信息** - 获取配置、所有者、历史记录
 
-### API Kit
-- **Safe Transaction Service** - 与官方API服务集成
-- **交易提交** - 提案、确认、查询交易状态
-- **Safe信息** - 获取钱包配置、所有者、历史记录
+### Utils (`protocol/utils/`)
+- **Safe 部署** - 钱包创建和初始化工具
+- **ERC20 工具** - 标准代币操作 ABI
+- **签名工具** - EIP-712 签名和验证
+- **地址计算** - CREATE2 地址预测
 
-### Types Kit
-- **类型定义** - Safe交易、签名、配置的Go类型
-- **数据验证** - 确保类型安全和数据完整性
+完整的工具包使用指南请参考 [`protocol/utils/README.md`](./protocol/utils/README.md)
 
-### Utils
-- **ERC20工具** - 基于ABI的标准代币操作
-- **签名工具** - EIP-712签名验证和恢复
-- **交易工具** - 数据编码、哈希计算等
+## 🧪 测试
 
-## 🎯 实际应用
+```bash
+# 运行所有测试
+go test ./...
 
-### ✅ 已验证功能
-- 🔐 **EIP-712哈希兼容** - 与TypeScript版本计算结果一致
-- ✍️  **签名验证通过** - Safe服务成功验证签名
-- 📤 **API提交成功** - 实际交易提案成功提交
-- 🔄 **多签工作流程** - 完整的2/3多签演示
+# 运行单元测试
+go test ./tests/unit
 
-### 🚀 生产就绪特性
-- **网络兼容** - 支持主网、Sepolia等多个网络
-- **错误处理** - 完整的错误处理和调试信息
-- **类型安全** - 编译时类型检查，避免运行时错误
-- **标准兼容** - 使用以太坊生态标准工具
+# 运行集成测试（需要配置环境变量）
+RUN_INTEGRATION_TESTS=true go test ./tests/integration
+```
 
-## 📚 文档
+## 📖 文档
 
 - **[多签钱包工作流程](./MULTISIG_WORKFLOW.md)** - 完整的创建和管理指南
-- **示例代码** - 详细的使用示例和最佳实践
-- **API文档** - 函数签名和参数说明
+- **[Utils 工具包文档](./protocol/utils/README.md)** - Safe 部署工具使用说明
+- **[贡献指南](./CONTRIBUTING.md)** - 如何参与项目开发
+
+## 🌐 网络支持
+
+### Sepolia 测试网
+
+```go
+const (
+    FactoryAddress   = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
+    SingletonAddress = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
+    FallbackHandler  = "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"
+)
+```
+
+更多网络地址请参考：https://docs.safe.global/safe-smart-account/supported-networks
+
+## ✅ 生产就绪
+
+- ✅ **EIP-712 哈希验证** - 与 TypeScript SDK 计算结果一致
+- ✅ **签名验证通过** - Safe 服务成功验证签名
+- ✅ **API 提交成功** - 实际交易提案成功提交
+- ✅ **多签工作流程** - 完整的 2/3 多签演示
+- ✅ **CREATE2 地址预测** - 准确预测部署地址
+- ✅ **完整测试覆盖** - 单元测试和集成测试
 
 ## 🔗 相关资源
 
-- [Safe官方文档](https://docs.safe.global/)
+- [Safe 官方文档](https://docs.safe.global/)
 - [Safe Transaction Service API](https://safe-transaction-mainnet.safe.global/)
-- [TypeScript SDK源码](https://github.com/safe-global/safe-core-sdk)
-- [Go-Ethereum文档](https://geth.ethereum.org/docs/)
+- [TypeScript SDK 源码](https://github.com/safe-global/safe-core-sdk)
+- [Go-Ethereum 文档](https://geth.ethereum.org/docs/)
 
 ## 🤝 贡献
 
-欢迎提交Issue和Pull Request来改进这个SDK！
+欢迎提交 Issue 和 Pull Request！详见 [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## 📄 许可证
 
-本项目采用与Safe官方SDK相同的许可证。
+本项目采用与 Safe 官方 SDK 相同的许可证。
 
 ---
 
-🎉 **Ready to Build!** 开始使用Go构建安全的多签钱包应用吧！
+🎉 **开始使用 Go 构建安全的多签钱包应用！**

@@ -50,8 +50,25 @@ func (gm *GuardManager) CreateSetGuardTx(ctx context.Context, params SetGuardTxP
 		return nil, fmt.Errorf("invalid guard address: %s", params.GuardAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Convert address - use zero address if empty
+	guardAddr := common.HexToAddress(params.GuardAddress)
+	if params.GuardAddress == "" {
+		guardAddr = common.HexToAddress("0x0")
+	}
+
+	// Pack the setGuard function call
+	data, err := abi.Pack("setGuard", guardAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack setGuard call: %w", err)
+	}
+
+	return data, nil
 }
 
 // CreateDisableGuardTx creates a transaction to disable the current guard

@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
@@ -7,40 +10,75 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/joho/godotenv"
 
 	"github.com/vikkkko/safe-core-sdk-golang/api"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
 )
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("⚠️  Warning: .env file not found, using environment variables\n")
+	}
+
 	fmt.Println("🏗️  Safe Multisig Wallet Creation")
 	fmt.Println("================================")
 
-	// 多签钱包配置
-	owners := []string{
-		"0x9C126aa4Eb6D110D646139969774F2c5b64dD279", // 所有者1
-		"0xeB7E951F2D1A38188762dF12E0703aE16F76ab73", // 所有者2
-		"0x74f4EFFb0B538BAec703346b03B6d9292f53A4CD", // 所有者3
+	// 从环境变量读取配置
+	rpcURL := os.Getenv("RPC_URL")
+	if rpcURL == "" {
+		log.Fatal("RPC_URL not set in .env")
 	}
-	threshold := 2 // 需要2个签名才能执行交易
 
-	// 网络配置
-	rpcURL := ""               //"https://ethereum-sepolia-rpc.publicnode.com"
-	chainID := int64(11155111) // Sepolia测试网
-	apiKey := ""
+	chainIDStr := os.Getenv("CHAIN_ID")
+	chainID, err := strconv.ParseInt(chainIDStr, 10, 64)
+	if err != nil || chainID == 0 {
+		chainID = 11155111 // 默认 Sepolia
+		fmt.Printf("ℹ️  Using default CHAIN_ID: %d\n", chainID)
+	}
 
-	// 部署者私钥 (用于支付gas费用)
-	deployerPrivateKey := ""
+	apiKey := os.Getenv("SAFE_API_KEY")
+	deployerPrivateKey := os.Getenv("DEPLOYER_PRIVATE_KEY")
+	if deployerPrivateKey == "" {
+		log.Fatal("DEPLOYER_PRIVATE_KEY not set in .env")
+	}
 
-	// 运行模式：true = 实际部署, false = 演示模式
-	deployMode := false // 设置为true进行实际部署
+	// 多签钱包配置 - 可以从环境变量读取或使用默认值
+	ownersStr := os.Getenv("SAFE_OWNERS")
+	var owners []string
+	if ownersStr != "" {
+		owners = strings.Split(ownersStr, ",")
+		for i := range owners {
+			owners[i] = strings.TrimSpace(owners[i])
+		}
+	} else {
+		// 默认配置
+		owners = []string{
+			"0x9C126aa4Eb6D110D646139969774F2c5b64dD279",
+			"0xeB7E951F2D1A38188762dF12E0703aE16F76ab73",
+			"0x74f4EFFb0B538BAec703346b03B6d9292f53A4CD",
+		}
+	}
+
+	thresholdStr := os.Getenv("SAFE_THRESHOLD")
+	threshold, err := strconv.Atoi(thresholdStr)
+	if err != nil || threshold == 0 {
+		threshold = 2 // 默认需要2个签名
+	}
+
+	// 运行模式
+	deployMode := os.Getenv("DEPLOY_MODE") == "true"
 
 	ctx := context.Background()
 
@@ -139,20 +177,22 @@ func main() {
 
 	fmt.Printf("📝 Preparing transaction...")
 
-	// 创建Safe初始化数据
-	initData, err := createSafeInitData(owners, threshold)
+	// 将字符串 owners 转换为 common.Address
+	ownerAddresses, err := utils.ParseOwnersFromStrings(owners)
 	if err != nil {
-		log.Fatalf("Failed to create Safe init data: %v", err)
+		log.Fatalf("Failed to parse owner addresses: %v", err)
 	}
 
-	// 创建工厂调用数据
-	factoryCallData, err := createSafeFactoryCallData(
-		safeSingletonAddress,
-		initData,
-		salt,
-	)
+	// 使用工具函数准备 Safe 部署数据
+	factoryCallData, err := utils.PrepareSafeDeployment(utils.DeploySafeConfig{
+		Owners:           ownerAddresses,
+		Threshold:        uint(threshold),
+		FactoryAddress:   common.HexToAddress(safeFactoryAddress),
+		SingletonAddress: common.HexToAddress(safeSingletonAddress),
+		SaltNonce:        new(big.Int).SetBytes(salt[:]),
+	})
 	if err != nil {
-		log.Fatalf("Failed to create factory call data: %v", err)
+		log.Fatalf("Failed to prepare Safe deployment: %v", err)
 	}
 
 	fmt.Printf(" ✅ (%d bytes)\n", len(factoryCallData))
@@ -202,9 +242,13 @@ func main() {
 // generateRandomSalt 生成用于CREATE2的32字节盐值
 func generateRandomSalt() [32]byte {
 	var salt [32]byte
-	// 生产环境中应使用crypto/rand生成安全随机数
-	// 演示中使用可预测的值
-	copy(salt[:], []byte("SafeMultisigDemo2025"))
+	// 使用时间戳生成唯一的salt
+	timestamp := big.NewInt(time.Now().UnixNano())
+	timestampBytes := timestamp.Bytes()
+
+	// 将时间戳字节填充到salt中
+	copy(salt[32-len(timestampBytes):], timestampBytes)
+
 	return salt
 }
 
@@ -216,107 +260,36 @@ func predictSafeAddress(
 	threshold int,
 	salt [32]byte,
 ) (common.Address, error) {
-	// 这是一个简化的预测实现
-	// 实际实现中应该：
-	// 1. 编码Safe初始化数据
-	// 2. 使用工厂合约计算CREATE2地址
-	// 3. 返回预测地址
-
-	// 演示用途，生成模拟地址
-	hash := crypto.Keccak256(
-		common.HexToAddress(factoryAddress).Bytes(),
-		common.HexToAddress(singletonAddress).Bytes(),
-		salt[:],
-	)
-
-	var addr common.Address
-	copy(addr[:], hash[12:])
-	return addr, nil
-}
-
-// createSafeInitData 创建Safe初始化数据
-func createSafeInitData(owners []string, threshold int) ([]byte, error) {
-	// Safe设置函数签名: setup(address[] _owners, uint256 _threshold, address to, bytes data, address fallbackHandler, address paymentToken, uint256 payment, address paymentReceiver)
-	safeSetupABI := `[{
-		"inputs": [
-			{"name": "_owners", "type": "address[]"},
-			{"name": "_threshold", "type": "uint256"},
-			{"name": "to", "type": "address"},
-			{"name": "data", "type": "bytes"},
-			{"name": "fallbackHandler", "type": "address"},
-			{"name": "paymentToken", "type": "address"},
-			{"name": "payment", "type": "uint256"},
-			{"name": "paymentReceiver", "type": "address"}
-		],
-		"name": "setup",
-		"outputs": [],
-		"type": "function"
-	}]`
-
-	parsedABI, err := abi.JSON(strings.NewReader(safeSetupABI))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Safe setup ABI: %w", err)
-	}
-
-	// 将字符串地址转换为common.Address
+	// 将字符串 owners 转换为 common.Address
 	ownerAddresses := make([]common.Address, len(owners))
 	for i, owner := range owners {
 		ownerAddresses[i] = common.HexToAddress(owner)
 	}
 
-	// 编码设置函数调用
-	data, err := parsedABI.Pack(
-		"setup",
-		ownerAddresses,               // _owners
-		big.NewInt(int64(threshold)), // _threshold
-		common.Address{},             // to (no delegate call)
-		[]byte{},                     // data (empty)
-		common.HexToAddress("0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"), // fallbackHandler
-		common.Address{}, // paymentToken (no payment)
-		big.NewInt(0),    // payment (0)
-		common.Address{}, // paymentReceiver (none)
+	// 创建 Safe 初始化数据
+	setupConfig := utils.SafeSetupConfig{
+		Owners:          ownerAddresses,
+		Threshold:       big.NewInt(int64(threshold)),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.HexToAddress("0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"),
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: common.Address{},
+	}
+
+	initData, err := utils.CreateSafeInitData(setupConfig)
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to create init data: %w", err)
+	}
+
+	// 使用正确的 CREATE2 地址计算
+	return utils.CalculateProxyAddress(
+		common.HexToAddress(factoryAddress),
+		common.HexToAddress(singletonAddress),
+		initData,
+		new(big.Int).SetBytes(salt[:]),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode setup call: %w", err)
-	}
-
-	return data, nil
-}
-
-// createSafeFactoryCallData creates the call data for Safe factory
-func createSafeFactoryCallData(singletonAddress string, initData []byte, salt [32]byte) ([]byte, error) {
-	// Safe factory createProxyWithNonce function
-	factoryABI := `[{
-		"inputs": [
-			{"name": "singleton", "type": "address"},
-			{"name": "data", "type": "bytes"},
-			{"name": "saltNonce", "type": "uint256"}
-		],
-		"name": "createProxyWithNonce",
-		"outputs": [{"name": "proxy", "type": "address"}],
-		"type": "function"
-	}]`
-
-	parsedABI, err := abi.JSON(strings.NewReader(factoryABI))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse factory ABI: %w", err)
-	}
-
-	// Convert salt to big.Int
-	saltBig := new(big.Int).SetBytes(salt[:])
-
-	// Encode the factory function call
-	data, err := parsedABI.Pack(
-		"createProxyWithNonce",
-		common.HexToAddress(singletonAddress), // singleton
-		initData,                              // data
-		saltBig,                               // saltNonce
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode factory call: %w", err)
-	}
-
-	return data, nil
 }
 
 // deploySafeWallet deploys the Safe wallet to the blockchain and returns the created address
@@ -349,12 +322,29 @@ func deploySafeWallet(ctx context.Context, client *ethclient.Client, privateKey 
 		return common.Address{}, fmt.Errorf("failed to get chain ID: %w", err)
 	}
 
+	// Estimate gas limit
+	factoryAddr := common.HexToAddress(factoryAddress)
+	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{
+		From: deployerAddress,
+		To:   &factoryAddr,
+		Data: callData,
+	})
+	if err != nil {
+		// If estimation fails, use a safe default
+		fmt.Printf("⚠️  Warning: gas estimation failed (%v), using default 800000\n", err)
+		gasLimit = 800000
+	} else {
+		// Add 10% buffer to estimated gas
+		gasLimit = gasLimit * 110 / 100
+		fmt.Printf("⛽ Estimated gas: %d (with 20%% buffer)\n", gasLimit)
+	}
+
 	// Create transaction
 	tx := types.NewTransaction(
 		nonce,
-		common.HexToAddress(factoryAddress),
+		factoryAddr,
 		big.NewInt(0), // value = 0
-		500000,        // gas limit
+		gasLimit,
 		gasPrice,
 		callData,
 	)

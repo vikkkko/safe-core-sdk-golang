@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -55,7 +56,7 @@ func (om *OwnerManager) GetOwnersCount(ctx context.Context) (uint, error) {
 
 // AddOwnerTxParams represents parameters for adding an owner
 type AddOwnerTxParams struct {
-	OwnerAddress string `json:"ownerAddress"` // Address of the new owner
+	OwnerAddress string `json:"ownerAddress"`        // Address of the new owner
 	Threshold    *uint  `json:"threshold,omitempty"` // New threshold (optional, defaults to current + 1)
 }
 
@@ -82,13 +83,36 @@ func (om *OwnerManager) CreateAddOwnerTx(ctx context.Context, params AddOwnerTxP
 		return nil, fmt.Errorf("address %s is already an owner", params.OwnerAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Determine threshold - use provided or current + 1
+	threshold := uint64(1) // default
+	if params.Threshold != nil {
+		threshold = uint64(*params.Threshold)
+	} else {
+		// Get current count and use as new threshold
+		count, err := om.GetOwnersCount(ctx)
+		if err == nil {
+			threshold = uint64(count)
+		}
+	}
+
+	// Pack the addOwnerWithThreshold function call
+	data, err := abi.Pack("addOwnerWithThreshold", common.HexToAddress(params.OwnerAddress), new(big.Int).SetUint64(threshold))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack addOwnerWithThreshold call: %w", err)
+	}
+
+	return data, nil
 }
 
 // RemoveOwnerTxParams represents parameters for removing an owner
 type RemoveOwnerTxParams struct {
-	OwnerAddress string `json:"ownerAddress"` // Address of the owner to remove
+	OwnerAddress string `json:"ownerAddress"`        // Address of the owner to remove
 	Threshold    *uint  `json:"threshold,omitempty"` // New threshold (optional, defaults to current - 1)
 }
 
@@ -116,8 +140,53 @@ func (om *OwnerManager) CreateRemoveOwnerTx(ctx context.Context, params RemoveOw
 		return nil, fmt.Errorf("address %s is not an owner", params.OwnerAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get all owners to find previous owner in linked list
+	owners, err := om.GetOwners(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get owners: %w", err)
+	}
+
+	// Find previous owner in the linked list
+	// Sentinel address for start of list
+	sentinel := common.HexToAddress("0x0000000000000000000000000000000000000001")
+	ownerToRemove := common.HexToAddress(params.OwnerAddress)
+	var prevOwner common.Address = sentinel
+
+	for i, owner := range owners {
+		if owner == ownerToRemove {
+			if i == 0 {
+				prevOwner = sentinel
+			} else {
+				prevOwner = owners[i-1]
+			}
+			break
+		}
+	}
+
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Determine threshold - use provided or current - 1 (but minimum 1)
+	threshold := uint64(1)
+	if params.Threshold != nil {
+		threshold = uint64(*params.Threshold)
+	} else {
+		count, err := om.GetOwnersCount(ctx)
+		if err == nil && count > 1 {
+			threshold = uint64(count - 1)
+		}
+	}
+
+	// Pack the removeOwner function call
+	data, err := abi.Pack("removeOwner", prevOwner, ownerToRemove, new(big.Int).SetUint64(threshold))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack removeOwner call: %w", err)
+	}
+
+	return data, nil
 }
 
 // SwapOwnerTxParams represents parameters for swapping an owner
@@ -163,8 +232,41 @@ func (om *OwnerManager) CreateSwapOwnerTx(ctx context.Context, params SwapOwnerT
 		return nil, fmt.Errorf("address %s is already an owner", params.NewOwnerAddress)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get all owners to find previous owner in linked list
+	owners, err := om.GetOwners(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get owners: %w", err)
+	}
+
+	// Find previous owner in the linked list
+	sentinel := common.HexToAddress("0x0000000000000000000000000000000000000001")
+	oldOwner := common.HexToAddress(params.OldOwnerAddress)
+	var prevOwner common.Address = sentinel
+
+	for i, owner := range owners {
+		if owner == oldOwner {
+			if i == 0 {
+				prevOwner = sentinel
+			} else {
+				prevOwner = owners[i-1]
+			}
+			break
+		}
+	}
+
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Pack the swapOwner function call
+	data, err := abi.Pack("swapOwner", prevOwner, oldOwner, common.HexToAddress(params.NewOwnerAddress))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack swapOwner call: %w", err)
+	}
+
+	return data, nil
 }
 
 // ChangeThresholdTxParams represents parameters for changing the threshold
@@ -194,6 +296,17 @@ func (om *OwnerManager) CreateChangeThresholdTx(ctx context.Context, params Chan
 		return nil, fmt.Errorf("threshold (%d) cannot be greater than number of owners (%d)", params.Threshold, ownersCount)
 	}
 
-	// TODO: Implement actual transaction data creation
-	return []byte{}, nil
+	// Get Safe ABI to encode function call
+	abi, err := contracts.SafeBindingMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	// Pack the changeThreshold function call
+	data, err := abi.Pack("changeThreshold", new(big.Int).SetUint64(uint64(params.Threshold)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack changeThreshold call: %w", err)
+	}
+
+	return data, nil
 }

@@ -303,6 +303,39 @@ func (s *Safe) standardizeSafeTransactionData(ctx context.Context, txData types.
 	}, nil
 }
 
+// GetTransactionHash calculates the transaction hash from the Safe contract
+func (s *Safe) GetTransactionHash(
+	ctx context.Context,
+	to common.Address,
+	value *big.Int,
+	data []byte,
+	operation uint8,
+	safeTxGas *big.Int,
+	baseGas *big.Int,
+	gasPrice *big.Int,
+	gasToken common.Address,
+	refundReceiver common.Address,
+	nonce *big.Int,
+) ([32]byte, error) {
+	safeContract, err := s.contractManager.GetSafeContract(common.HexToAddress(s.config.SafeAddress))
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to get Safe contract: %w", err)
+	}
+
+	return safeContract.GetTransactionHash(
+		to,
+		value,
+		data,
+		operation,
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		gasToken,
+		refundReceiver,
+		nonce,
+	)
+}
+
 // SignTransaction signs a Safe transaction
 func (s *Safe) SignTransaction(ctx context.Context, transaction *types.SafeTransaction, signerAddress common.Address) error {
 	// This is a placeholder implementation
