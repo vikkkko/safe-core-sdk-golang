@@ -151,6 +151,33 @@ const EnterpriseWalletABI = `[
 		"name": "predictCollectionAccountAddress",
 		"inputs": [],
 		"outputs": [{"name": "", "type": "address"}]
+	},
+	{
+		"type": "function",
+		"name": "updateMethodControllers",
+		"inputs": [
+			{"name": "methodSigs", "type": "bytes4[]"},
+			{"name": "controllers", "type": "address[]"}
+		],
+		"outputs": []
+	},
+	{
+		"type": "function",
+		"name": "setMethodController",
+		"inputs": [
+			{"name": "methodSigs", "type": "bytes4[]"},
+			{"name": "controller", "type": "address"}
+		],
+		"outputs": []
+	},
+	{
+		"type": "function",
+		"name": "emergencyFreeze",
+		"inputs": [
+			{"name": "target", "type": "address"},
+			{"name": "freeze", "type": "bool"}
+		],
+		"outputs": []
 	}
 ]`
 
@@ -320,4 +347,115 @@ var (
 	ApproveTokenForPaymentSelector  = GetMethodSelector("approveTokenForPayment(address,address,uint256)")
 	TransferETHToPaymentSelector    = GetMethodSelector("transferETHToPayment(address,uint256)")
 	CollectFundsSelector            = GetMethodSelector("collectFunds(address,address)")
+
+	// SuperAdmin transfer selectors
+	ProposeSuperAdminTransferSelector = GetMethodSelector("proposeSuperAdminTransfer(address,uint256)")
+	ConfirmSuperAdminTransferSelector = GetMethodSelector("confirmSuperAdminTransfer(uint256)")
+	CancelSuperAdminTransferSelector  = GetMethodSelector("cancelSuperAdminTransfer(uint256)")
 )
+
+// ProposeSuperAdminTransferData creates the call data for proposing a super admin transfer
+func ProposeSuperAdminTransferData(newSuperAdmin common.Address, timeout *big.Int) ([]byte, error) {
+	// Manually encode the function call
+	selector := ProposeSuperAdminTransferSelector
+
+	// Encode parameters (address, uint256)
+	data := make([]byte, 4+32+32)
+	copy(data[0:4], selector[:])
+	copy(data[4+12:4+32], newSuperAdmin.Bytes())
+
+	// Encode timeout as uint256
+	timeoutBytes := timeout.Bytes()
+	copy(data[36+32-len(timeoutBytes):36+32], timeoutBytes)
+
+	return data, nil
+}
+
+// ConfirmSuperAdminTransferData creates the call data for confirming a super admin transfer
+func ConfirmSuperAdminTransferData(proposalId *big.Int) ([]byte, error) {
+	selector := ConfirmSuperAdminTransferSelector
+
+	// Encode parameter (uint256)
+	data := make([]byte, 4+32)
+	copy(data[0:4], selector[:])
+
+	// Encode proposalId as uint256
+	proposalIdBytes := proposalId.Bytes()
+	copy(data[4+32-len(proposalIdBytes):4+32], proposalIdBytes)
+
+	return data, nil
+}
+
+// CancelSuperAdminTransferData creates the call data for cancelling a super admin transfer
+func CancelSuperAdminTransferData(proposalId *big.Int) ([]byte, error) {
+	selector := CancelSuperAdminTransferSelector
+
+	// Encode parameter (uint256)
+	data := make([]byte, 4+32)
+	copy(data[0:4], selector[:])
+
+	// Encode proposalId as uint256
+	proposalIdBytes := proposalId.Bytes()
+	copy(data[4+32-len(proposalIdBytes):4+32], proposalIdBytes)
+
+	return data, nil
+}
+
+// UpdateMethodControllersData creates the call data for batch updating method controllers with different controllers
+// This allows updating multiple methods with different controllers in a single transaction
+func UpdateMethodControllersData(methodSigs [][4]byte, controllers []common.Address) ([]byte, error) {
+	if len(methodSigs) != len(controllers) {
+		return nil, fmt.Errorf("methodSigs and controllers must have the same length")
+	}
+	if len(methodSigs) == 0 {
+		return nil, fmt.Errorf("methodSigs cannot be empty")
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	data, err := parsedABI.Pack("updateMethodControllers", methodSigs, controllers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode updateMethodControllers call: %w", err)
+	}
+
+	return data, nil
+}
+
+// SetMethodControllerData creates the call data for batch setting the same controller for multiple methods
+// This allows setting the same controller for multiple methods in a single transaction
+func SetMethodControllerData(methodSigs [][4]byte, controller common.Address) ([]byte, error) {
+	if len(methodSigs) == 0 {
+		return nil, fmt.Errorf("methodSigs cannot be empty")
+	}
+
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	data, err := parsedABI.Pack("setMethodController", methodSigs, controller)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode setMethodController call: %w", err)
+	}
+
+	return data, nil
+}
+
+// EmergencyFreezeData creates the call data for emergency freezing/unfreezing an account
+// Note: This now requires method controller permission (changed from superAdmin)
+func EmergencyFreezeData(target common.Address, freeze bool) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	data, err := parsedABI.Pack("emergencyFreeze", target, freeze)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode emergencyFreeze call: %w", err)
+	}
+
+	return data, nil
+}

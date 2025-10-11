@@ -41,9 +41,18 @@ type IEnterpriseWalletMethodConfig struct {
 	Controller common.Address
 }
 
+// IEnterpriseWalletSuperAdminTransfer is an auto generated low-level Go binding around an user-defined struct.
+type IEnterpriseWalletSuperAdminTransfer struct {
+	CurrentSuperAdmin  common.Address
+	ProposedSuperAdmin common.Address
+	ProposedAt         *big.Int
+	Timeout            *big.Int
+	IsActive           bool
+}
+
 // EnterpriseWalletMetaData contains all meta data concerning the EnterpriseWallet contract.
 var EnterpriseWalletMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"approveTokenForPayment\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"collectFunds\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"collectionAccount\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"createCollectionAccount\",\"inputs\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"collectionTarget\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"createPaymentAccount\",\"inputs\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyFreeze\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"freeze\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyPause\",\"inputs\":[{\"name\":\"pause\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getAllowance\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountByIndex\",\"inputs\":[{\"name\":\"index\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.AccountInfo\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountNonce\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccounts\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountsCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountsPaginated\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"accounts\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"name\":\"total\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getMethodConfig\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.MethodConfig\",\"components\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountByIndex\",\"inputs\":[{\"name\":\"index\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.AccountInfo\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountNonce\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccounts\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountsCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountsPaginated\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"accounts\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"name\":\"total\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAdmin\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"methods\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"},{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.MethodConfig[]\",\"components\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"name\":\"superAdmin\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isCollectionAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFrozen\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isPaused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isPaymentAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"predictCollectionAccountAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"predictPaymentAccountAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"setCollectionTarget\",\"inputs\":[{\"name\":\"collectionAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferETHToPayment\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"addresspayable\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMethodController\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePaymentAccountController\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AllowanceSet\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"CollectionAccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"creator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyFreeze\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"frozen\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyPause\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundsCollected\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MethodControllerUpdated\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PaymentAccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"creator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccountNotFound\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AlreadyInitialized\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ContractPaused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Create2EmptyBytecode\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FailedDeployment\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientAllowance\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"InvalidAmount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMethodConfig\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidSafeAddress\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TargetFrozen\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"UnauthorizedCaller\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"receive\",\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"approveTokenForPayment\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelSuperAdminTransfer\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"collectFunds\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"collectionAccount\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"confirmSuperAdminTransfer\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"createCollectionAccount\",\"inputs\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"collectionTarget\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"createPaymentAccount\",\"inputs\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyFreeze\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"freeze\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyPause\",\"inputs\":[{\"name\":\"pause\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getAllowance\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountByIndex\",\"inputs\":[{\"name\":\"index\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.AccountInfo\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountNonce\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccounts\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountsCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCollectionAccountsPaginated\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"accounts\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"name\":\"total\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCurrentSuperAdminTransferNonce\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getMethodConfig\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.MethodConfig\",\"components\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountByIndex\",\"inputs\":[{\"name\":\"index\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.AccountInfo\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountNonce\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccounts\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountsCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPaymentAccountsPaginated\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"accounts\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.AccountInfo[]\",\"components\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"createdAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]},{\"name\":\"total\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAdmin\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAdminTransfer\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEnterpriseWallet.SuperAdminTransfer\",\"components\":[{\"name\":\"currentSuperAdmin\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedSuperAdmin\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedAt\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"timeout\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"methods\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"},{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structIEnterpriseWallet.MethodConfig[]\",\"components\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"name\":\"superAdmin\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isCollectionAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFrozen\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isPaused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isPaymentAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidSuperAdminTransfer\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"predictCollectionAccountAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"predictPaymentAccountAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeSuperAdminTransfer\",\"inputs\":[{\"name\":\"newSuperAdmin\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"timeout\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setCollectionTarget\",\"inputs\":[{\"name\":\"collectionAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMethodController\",\"inputs\":[{\"name\":\"methodSigs\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferETHToPayment\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"addresspayable\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMethodController\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateMethodControllers\",\"inputs\":[{\"name\":\"methodSigs\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"},{\"name\":\"controllers\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updatePaymentAccountController\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AllowanceSet\",\"inputs\":[{\"name\":\"paymentAccount\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"CollectionAccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"creator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyFreeze\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"frozen\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyPause\",\"inputs\":[{\"name\":\"paused\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundsCollected\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"version\",\"type\":\"uint64\",\"indexed\":false,\"internalType\":\"uint64\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MethodControllerUpdated\",\"inputs\":[{\"name\":\"methodSig\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PaymentAccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"creator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperAdminTransferCancelled\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperAdminTransferProposed\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"currentSuperAdmin\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"proposedSuperAdmin\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperAdminTransferred\",\"inputs\":[{\"name\":\"proposalId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"oldSuperAdmin\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newSuperAdmin\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccountNotFound\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AlreadyInitialized\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ContractPaused\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"Create2EmptyBytecode\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FailedDeployment\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientAllowance\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"InvalidAmount\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidInitialization\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidMethodConfig\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InvalidSafeAddress\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitializing\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TargetFrozen\",\"inputs\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"UnauthorizedCaller\",\"inputs\":[]}]",
 }
 
 // EnterpriseWalletABI is the input ABI used to generate the binding from.
@@ -392,6 +401,37 @@ func (_EnterpriseWallet *EnterpriseWalletCallerSession) GetCollectionAccountsPag
 	return _EnterpriseWallet.Contract.GetCollectionAccountsPaginated(&_EnterpriseWallet.CallOpts, offset, limit)
 }
 
+// GetCurrentSuperAdminTransferNonce is a free data retrieval call binding the contract method 0xb0c19260.
+//
+// Solidity: function getCurrentSuperAdminTransferNonce() view returns(uint256)
+func (_EnterpriseWallet *EnterpriseWalletCaller) GetCurrentSuperAdminTransferNonce(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _EnterpriseWallet.contract.Call(opts, &out, "getCurrentSuperAdminTransferNonce")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetCurrentSuperAdminTransferNonce is a free data retrieval call binding the contract method 0xb0c19260.
+//
+// Solidity: function getCurrentSuperAdminTransferNonce() view returns(uint256)
+func (_EnterpriseWallet *EnterpriseWalletSession) GetCurrentSuperAdminTransferNonce() (*big.Int, error) {
+	return _EnterpriseWallet.Contract.GetCurrentSuperAdminTransferNonce(&_EnterpriseWallet.CallOpts)
+}
+
+// GetCurrentSuperAdminTransferNonce is a free data retrieval call binding the contract method 0xb0c19260.
+//
+// Solidity: function getCurrentSuperAdminTransferNonce() view returns(uint256)
+func (_EnterpriseWallet *EnterpriseWalletCallerSession) GetCurrentSuperAdminTransferNonce() (*big.Int, error) {
+	return _EnterpriseWallet.Contract.GetCurrentSuperAdminTransferNonce(&_EnterpriseWallet.CallOpts)
+}
+
 // GetMethodConfig is a free data retrieval call binding the contract method 0x3a6d19d5.
 //
 // Solidity: function getMethodConfig(bytes4 methodSig) view returns((address))
@@ -623,6 +663,37 @@ func (_EnterpriseWallet *EnterpriseWalletCallerSession) GetSuperAdmin() (common.
 	return _EnterpriseWallet.Contract.GetSuperAdmin(&_EnterpriseWallet.CallOpts)
 }
 
+// GetSuperAdminTransfer is a free data retrieval call binding the contract method 0x07c93a29.
+//
+// Solidity: function getSuperAdminTransfer(uint256 proposalId) view returns((address,address,uint256,uint256,bool))
+func (_EnterpriseWallet *EnterpriseWalletCaller) GetSuperAdminTransfer(opts *bind.CallOpts, proposalId *big.Int) (IEnterpriseWalletSuperAdminTransfer, error) {
+	var out []interface{}
+	err := _EnterpriseWallet.contract.Call(opts, &out, "getSuperAdminTransfer", proposalId)
+
+	if err != nil {
+		return *new(IEnterpriseWalletSuperAdminTransfer), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(IEnterpriseWalletSuperAdminTransfer)).(*IEnterpriseWalletSuperAdminTransfer)
+
+	return out0, err
+
+}
+
+// GetSuperAdminTransfer is a free data retrieval call binding the contract method 0x07c93a29.
+//
+// Solidity: function getSuperAdminTransfer(uint256 proposalId) view returns((address,address,uint256,uint256,bool))
+func (_EnterpriseWallet *EnterpriseWalletSession) GetSuperAdminTransfer(proposalId *big.Int) (IEnterpriseWalletSuperAdminTransfer, error) {
+	return _EnterpriseWallet.Contract.GetSuperAdminTransfer(&_EnterpriseWallet.CallOpts, proposalId)
+}
+
+// GetSuperAdminTransfer is a free data retrieval call binding the contract method 0x07c93a29.
+//
+// Solidity: function getSuperAdminTransfer(uint256 proposalId) view returns((address,address,uint256,uint256,bool))
+func (_EnterpriseWallet *EnterpriseWalletCallerSession) GetSuperAdminTransfer(proposalId *big.Int) (IEnterpriseWalletSuperAdminTransfer, error) {
+	return _EnterpriseWallet.Contract.GetSuperAdminTransfer(&_EnterpriseWallet.CallOpts, proposalId)
+}
+
 // IsCollectionAccount is a free data retrieval call binding the contract method 0x0f10c8c8.
 //
 // Solidity: function isCollectionAccount(address account) view returns(bool)
@@ -747,6 +818,37 @@ func (_EnterpriseWallet *EnterpriseWalletCallerSession) IsPaymentAccount(account
 	return _EnterpriseWallet.Contract.IsPaymentAccount(&_EnterpriseWallet.CallOpts, account)
 }
 
+// IsValidSuperAdminTransfer is a free data retrieval call binding the contract method 0xa351abf6.
+//
+// Solidity: function isValidSuperAdminTransfer(uint256 proposalId) view returns(bool)
+func (_EnterpriseWallet *EnterpriseWalletCaller) IsValidSuperAdminTransfer(opts *bind.CallOpts, proposalId *big.Int) (bool, error) {
+	var out []interface{}
+	err := _EnterpriseWallet.contract.Call(opts, &out, "isValidSuperAdminTransfer", proposalId)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsValidSuperAdminTransfer is a free data retrieval call binding the contract method 0xa351abf6.
+//
+// Solidity: function isValidSuperAdminTransfer(uint256 proposalId) view returns(bool)
+func (_EnterpriseWallet *EnterpriseWalletSession) IsValidSuperAdminTransfer(proposalId *big.Int) (bool, error) {
+	return _EnterpriseWallet.Contract.IsValidSuperAdminTransfer(&_EnterpriseWallet.CallOpts, proposalId)
+}
+
+// IsValidSuperAdminTransfer is a free data retrieval call binding the contract method 0xa351abf6.
+//
+// Solidity: function isValidSuperAdminTransfer(uint256 proposalId) view returns(bool)
+func (_EnterpriseWallet *EnterpriseWalletCallerSession) IsValidSuperAdminTransfer(proposalId *big.Int) (bool, error) {
+	return _EnterpriseWallet.Contract.IsValidSuperAdminTransfer(&_EnterpriseWallet.CallOpts, proposalId)
+}
+
 // PredictCollectionAccountAddress is a free data retrieval call binding the contract method 0x82d72e2f.
 //
 // Solidity: function predictCollectionAccountAddress() view returns(address)
@@ -830,6 +932,27 @@ func (_EnterpriseWallet *EnterpriseWalletTransactorSession) ApproveTokenForPayme
 	return _EnterpriseWallet.Contract.ApproveTokenForPayment(&_EnterpriseWallet.TransactOpts, token, paymentAccount, amount)
 }
 
+// CancelSuperAdminTransfer is a paid mutator transaction binding the contract method 0xb481573c.
+//
+// Solidity: function cancelSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactor) CancelSuperAdminTransfer(opts *bind.TransactOpts, proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.contract.Transact(opts, "cancelSuperAdminTransfer", proposalId)
+}
+
+// CancelSuperAdminTransfer is a paid mutator transaction binding the contract method 0xb481573c.
+//
+// Solidity: function cancelSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletSession) CancelSuperAdminTransfer(proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.CancelSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, proposalId)
+}
+
+// CancelSuperAdminTransfer is a paid mutator transaction binding the contract method 0xb481573c.
+//
+// Solidity: function cancelSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactorSession) CancelSuperAdminTransfer(proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.CancelSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, proposalId)
+}
+
 // CollectFunds is a paid mutator transaction binding the contract method 0xdd6890ef.
 //
 // Solidity: function collectFunds(address token, address collectionAccount) returns()
@@ -849,6 +972,27 @@ func (_EnterpriseWallet *EnterpriseWalletSession) CollectFunds(token common.Addr
 // Solidity: function collectFunds(address token, address collectionAccount) returns()
 func (_EnterpriseWallet *EnterpriseWalletTransactorSession) CollectFunds(token common.Address, collectionAccount common.Address) (*types.Transaction, error) {
 	return _EnterpriseWallet.Contract.CollectFunds(&_EnterpriseWallet.TransactOpts, token, collectionAccount)
+}
+
+// ConfirmSuperAdminTransfer is a paid mutator transaction binding the contract method 0x98756206.
+//
+// Solidity: function confirmSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactor) ConfirmSuperAdminTransfer(opts *bind.TransactOpts, proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.contract.Transact(opts, "confirmSuperAdminTransfer", proposalId)
+}
+
+// ConfirmSuperAdminTransfer is a paid mutator transaction binding the contract method 0x98756206.
+//
+// Solidity: function confirmSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletSession) ConfirmSuperAdminTransfer(proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.ConfirmSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, proposalId)
+}
+
+// ConfirmSuperAdminTransfer is a paid mutator transaction binding the contract method 0x98756206.
+//
+// Solidity: function confirmSuperAdminTransfer(uint256 proposalId) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactorSession) ConfirmSuperAdminTransfer(proposalId *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.ConfirmSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, proposalId)
 }
 
 // CreateCollectionAccount is a paid mutator transaction binding the contract method 0xc8ac06ed.
@@ -956,6 +1100,27 @@ func (_EnterpriseWallet *EnterpriseWalletTransactorSession) Initialize(methods [
 	return _EnterpriseWallet.Contract.Initialize(&_EnterpriseWallet.TransactOpts, methods, configs, superAdmin)
 }
 
+// ProposeSuperAdminTransfer is a paid mutator transaction binding the contract method 0x4c64d20e.
+//
+// Solidity: function proposeSuperAdminTransfer(address newSuperAdmin, uint256 timeout) returns(uint256 proposalId)
+func (_EnterpriseWallet *EnterpriseWalletTransactor) ProposeSuperAdminTransfer(opts *bind.TransactOpts, newSuperAdmin common.Address, timeout *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.contract.Transact(opts, "proposeSuperAdminTransfer", newSuperAdmin, timeout)
+}
+
+// ProposeSuperAdminTransfer is a paid mutator transaction binding the contract method 0x4c64d20e.
+//
+// Solidity: function proposeSuperAdminTransfer(address newSuperAdmin, uint256 timeout) returns(uint256 proposalId)
+func (_EnterpriseWallet *EnterpriseWalletSession) ProposeSuperAdminTransfer(newSuperAdmin common.Address, timeout *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.ProposeSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, newSuperAdmin, timeout)
+}
+
+// ProposeSuperAdminTransfer is a paid mutator transaction binding the contract method 0x4c64d20e.
+//
+// Solidity: function proposeSuperAdminTransfer(address newSuperAdmin, uint256 timeout) returns(uint256 proposalId)
+func (_EnterpriseWallet *EnterpriseWalletTransactorSession) ProposeSuperAdminTransfer(newSuperAdmin common.Address, timeout *big.Int) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.ProposeSuperAdminTransfer(&_EnterpriseWallet.TransactOpts, newSuperAdmin, timeout)
+}
+
 // SetCollectionTarget is a paid mutator transaction binding the contract method 0x2bd959ee.
 //
 // Solidity: function setCollectionTarget(address collectionAccount, address target) returns()
@@ -975,6 +1140,27 @@ func (_EnterpriseWallet *EnterpriseWalletSession) SetCollectionTarget(collection
 // Solidity: function setCollectionTarget(address collectionAccount, address target) returns()
 func (_EnterpriseWallet *EnterpriseWalletTransactorSession) SetCollectionTarget(collectionAccount common.Address, target common.Address) (*types.Transaction, error) {
 	return _EnterpriseWallet.Contract.SetCollectionTarget(&_EnterpriseWallet.TransactOpts, collectionAccount, target)
+}
+
+// SetMethodController is a paid mutator transaction binding the contract method 0x5aeee838.
+//
+// Solidity: function setMethodController(bytes4[] methodSigs, address controller) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactor) SetMethodController(opts *bind.TransactOpts, methodSigs [][4]byte, controller common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.contract.Transact(opts, "setMethodController", methodSigs, controller)
+}
+
+// SetMethodController is a paid mutator transaction binding the contract method 0x5aeee838.
+//
+// Solidity: function setMethodController(bytes4[] methodSigs, address controller) returns()
+func (_EnterpriseWallet *EnterpriseWalletSession) SetMethodController(methodSigs [][4]byte, controller common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.SetMethodController(&_EnterpriseWallet.TransactOpts, methodSigs, controller)
+}
+
+// SetMethodController is a paid mutator transaction binding the contract method 0x5aeee838.
+//
+// Solidity: function setMethodController(bytes4[] methodSigs, address controller) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactorSession) SetMethodController(methodSigs [][4]byte, controller common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.SetMethodController(&_EnterpriseWallet.TransactOpts, methodSigs, controller)
 }
 
 // TransferETHToPayment is a paid mutator transaction binding the contract method 0x9ce5949e.
@@ -1017,6 +1203,27 @@ func (_EnterpriseWallet *EnterpriseWalletSession) UpdateMethodController(methodS
 // Solidity: function updateMethodController(bytes4 methodSig, address controller) returns()
 func (_EnterpriseWallet *EnterpriseWalletTransactorSession) UpdateMethodController(methodSig [4]byte, controller common.Address) (*types.Transaction, error) {
 	return _EnterpriseWallet.Contract.UpdateMethodController(&_EnterpriseWallet.TransactOpts, methodSig, controller)
+}
+
+// UpdateMethodControllers is a paid mutator transaction binding the contract method 0x51ab59a2.
+//
+// Solidity: function updateMethodControllers(bytes4[] methodSigs, address[] controllers) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactor) UpdateMethodControllers(opts *bind.TransactOpts, methodSigs [][4]byte, controllers []common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.contract.Transact(opts, "updateMethodControllers", methodSigs, controllers)
+}
+
+// UpdateMethodControllers is a paid mutator transaction binding the contract method 0x51ab59a2.
+//
+// Solidity: function updateMethodControllers(bytes4[] methodSigs, address[] controllers) returns()
+func (_EnterpriseWallet *EnterpriseWalletSession) UpdateMethodControllers(methodSigs [][4]byte, controllers []common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.UpdateMethodControllers(&_EnterpriseWallet.TransactOpts, methodSigs, controllers)
+}
+
+// UpdateMethodControllers is a paid mutator transaction binding the contract method 0x51ab59a2.
+//
+// Solidity: function updateMethodControllers(bytes4[] methodSigs, address[] controllers) returns()
+func (_EnterpriseWallet *EnterpriseWalletTransactorSession) UpdateMethodControllers(methodSigs [][4]byte, controllers []common.Address) (*types.Transaction, error) {
+	return _EnterpriseWallet.Contract.UpdateMethodControllers(&_EnterpriseWallet.TransactOpts, methodSigs, controllers)
 }
 
 // UpdatePaymentAccountController is a paid mutator transaction binding the contract method 0xf0f3fb5b.
@@ -2253,6 +2460,474 @@ func (_EnterpriseWallet *EnterpriseWalletFilterer) WatchPaymentAccountCreated(op
 func (_EnterpriseWallet *EnterpriseWalletFilterer) ParsePaymentAccountCreated(log types.Log) (*EnterpriseWalletPaymentAccountCreated, error) {
 	event := new(EnterpriseWalletPaymentAccountCreated)
 	if err := _EnterpriseWallet.contract.UnpackLog(event, "PaymentAccountCreated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// EnterpriseWalletSuperAdminTransferCancelledIterator is returned from FilterSuperAdminTransferCancelled and is used to iterate over the raw logs and unpacked data for SuperAdminTransferCancelled events raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferCancelledIterator struct {
+	Event *EnterpriseWalletSuperAdminTransferCancelled // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *EnterpriseWalletSuperAdminTransferCancelledIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(EnterpriseWalletSuperAdminTransferCancelled)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(EnterpriseWalletSuperAdminTransferCancelled)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *EnterpriseWalletSuperAdminTransferCancelledIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *EnterpriseWalletSuperAdminTransferCancelledIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// EnterpriseWalletSuperAdminTransferCancelled represents a SuperAdminTransferCancelled event raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferCancelled struct {
+	ProposalId *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
+}
+
+// FilterSuperAdminTransferCancelled is a free log retrieval operation binding the contract event 0xd6825eb44e9cd4752bd497ab2a430db66148c391c17939470ac0aece8260b117.
+//
+// Solidity: event SuperAdminTransferCancelled(uint256 indexed proposalId)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) FilterSuperAdminTransferCancelled(opts *bind.FilterOpts, proposalId []*big.Int) (*EnterpriseWalletSuperAdminTransferCancelledIterator, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.FilterLogs(opts, "SuperAdminTransferCancelled", proposalIdRule)
+	if err != nil {
+		return nil, err
+	}
+	return &EnterpriseWalletSuperAdminTransferCancelledIterator{contract: _EnterpriseWallet.contract, event: "SuperAdminTransferCancelled", logs: logs, sub: sub}, nil
+}
+
+// WatchSuperAdminTransferCancelled is a free log subscription operation binding the contract event 0xd6825eb44e9cd4752bd497ab2a430db66148c391c17939470ac0aece8260b117.
+//
+// Solidity: event SuperAdminTransferCancelled(uint256 indexed proposalId)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) WatchSuperAdminTransferCancelled(opts *bind.WatchOpts, sink chan<- *EnterpriseWalletSuperAdminTransferCancelled, proposalId []*big.Int) (event.Subscription, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.WatchLogs(opts, "SuperAdminTransferCancelled", proposalIdRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(EnterpriseWalletSuperAdminTransferCancelled)
+				if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferCancelled", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSuperAdminTransferCancelled is a log parse operation binding the contract event 0xd6825eb44e9cd4752bd497ab2a430db66148c391c17939470ac0aece8260b117.
+//
+// Solidity: event SuperAdminTransferCancelled(uint256 indexed proposalId)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) ParseSuperAdminTransferCancelled(log types.Log) (*EnterpriseWalletSuperAdminTransferCancelled, error) {
+	event := new(EnterpriseWalletSuperAdminTransferCancelled)
+	if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferCancelled", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// EnterpriseWalletSuperAdminTransferProposedIterator is returned from FilterSuperAdminTransferProposed and is used to iterate over the raw logs and unpacked data for SuperAdminTransferProposed events raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferProposedIterator struct {
+	Event *EnterpriseWalletSuperAdminTransferProposed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *EnterpriseWalletSuperAdminTransferProposedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(EnterpriseWalletSuperAdminTransferProposed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(EnterpriseWalletSuperAdminTransferProposed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *EnterpriseWalletSuperAdminTransferProposedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *EnterpriseWalletSuperAdminTransferProposedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// EnterpriseWalletSuperAdminTransferProposed represents a SuperAdminTransferProposed event raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferProposed struct {
+	ProposalId         *big.Int
+	CurrentSuperAdmin  common.Address
+	ProposedSuperAdmin common.Address
+	Raw                types.Log // Blockchain specific contextual infos
+}
+
+// FilterSuperAdminTransferProposed is a free log retrieval operation binding the contract event 0x1193eb6285ae51ade0e191742e3176d93e54fc6df5e3faedf9825907d363db2c.
+//
+// Solidity: event SuperAdminTransferProposed(uint256 indexed proposalId, address indexed currentSuperAdmin, address indexed proposedSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) FilterSuperAdminTransferProposed(opts *bind.FilterOpts, proposalId []*big.Int, currentSuperAdmin []common.Address, proposedSuperAdmin []common.Address) (*EnterpriseWalletSuperAdminTransferProposedIterator, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+	var currentSuperAdminRule []interface{}
+	for _, currentSuperAdminItem := range currentSuperAdmin {
+		currentSuperAdminRule = append(currentSuperAdminRule, currentSuperAdminItem)
+	}
+	var proposedSuperAdminRule []interface{}
+	for _, proposedSuperAdminItem := range proposedSuperAdmin {
+		proposedSuperAdminRule = append(proposedSuperAdminRule, proposedSuperAdminItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.FilterLogs(opts, "SuperAdminTransferProposed", proposalIdRule, currentSuperAdminRule, proposedSuperAdminRule)
+	if err != nil {
+		return nil, err
+	}
+	return &EnterpriseWalletSuperAdminTransferProposedIterator{contract: _EnterpriseWallet.contract, event: "SuperAdminTransferProposed", logs: logs, sub: sub}, nil
+}
+
+// WatchSuperAdminTransferProposed is a free log subscription operation binding the contract event 0x1193eb6285ae51ade0e191742e3176d93e54fc6df5e3faedf9825907d363db2c.
+//
+// Solidity: event SuperAdminTransferProposed(uint256 indexed proposalId, address indexed currentSuperAdmin, address indexed proposedSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) WatchSuperAdminTransferProposed(opts *bind.WatchOpts, sink chan<- *EnterpriseWalletSuperAdminTransferProposed, proposalId []*big.Int, currentSuperAdmin []common.Address, proposedSuperAdmin []common.Address) (event.Subscription, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+	var currentSuperAdminRule []interface{}
+	for _, currentSuperAdminItem := range currentSuperAdmin {
+		currentSuperAdminRule = append(currentSuperAdminRule, currentSuperAdminItem)
+	}
+	var proposedSuperAdminRule []interface{}
+	for _, proposedSuperAdminItem := range proposedSuperAdmin {
+		proposedSuperAdminRule = append(proposedSuperAdminRule, proposedSuperAdminItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.WatchLogs(opts, "SuperAdminTransferProposed", proposalIdRule, currentSuperAdminRule, proposedSuperAdminRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(EnterpriseWalletSuperAdminTransferProposed)
+				if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferProposed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSuperAdminTransferProposed is a log parse operation binding the contract event 0x1193eb6285ae51ade0e191742e3176d93e54fc6df5e3faedf9825907d363db2c.
+//
+// Solidity: event SuperAdminTransferProposed(uint256 indexed proposalId, address indexed currentSuperAdmin, address indexed proposedSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) ParseSuperAdminTransferProposed(log types.Log) (*EnterpriseWalletSuperAdminTransferProposed, error) {
+	event := new(EnterpriseWalletSuperAdminTransferProposed)
+	if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferProposed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// EnterpriseWalletSuperAdminTransferredIterator is returned from FilterSuperAdminTransferred and is used to iterate over the raw logs and unpacked data for SuperAdminTransferred events raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferredIterator struct {
+	Event *EnterpriseWalletSuperAdminTransferred // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *EnterpriseWalletSuperAdminTransferredIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(EnterpriseWalletSuperAdminTransferred)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(EnterpriseWalletSuperAdminTransferred)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *EnterpriseWalletSuperAdminTransferredIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *EnterpriseWalletSuperAdminTransferredIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// EnterpriseWalletSuperAdminTransferred represents a SuperAdminTransferred event raised by the EnterpriseWallet contract.
+type EnterpriseWalletSuperAdminTransferred struct {
+	ProposalId    *big.Int
+	OldSuperAdmin common.Address
+	NewSuperAdmin common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterSuperAdminTransferred is a free log retrieval operation binding the contract event 0xc9ea25491d70d4ed75e79cd95324385a03f640075be5c2f8db845362f7e5da1b.
+//
+// Solidity: event SuperAdminTransferred(uint256 indexed proposalId, address indexed oldSuperAdmin, address indexed newSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) FilterSuperAdminTransferred(opts *bind.FilterOpts, proposalId []*big.Int, oldSuperAdmin []common.Address, newSuperAdmin []common.Address) (*EnterpriseWalletSuperAdminTransferredIterator, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+	var oldSuperAdminRule []interface{}
+	for _, oldSuperAdminItem := range oldSuperAdmin {
+		oldSuperAdminRule = append(oldSuperAdminRule, oldSuperAdminItem)
+	}
+	var newSuperAdminRule []interface{}
+	for _, newSuperAdminItem := range newSuperAdmin {
+		newSuperAdminRule = append(newSuperAdminRule, newSuperAdminItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.FilterLogs(opts, "SuperAdminTransferred", proposalIdRule, oldSuperAdminRule, newSuperAdminRule)
+	if err != nil {
+		return nil, err
+	}
+	return &EnterpriseWalletSuperAdminTransferredIterator{contract: _EnterpriseWallet.contract, event: "SuperAdminTransferred", logs: logs, sub: sub}, nil
+}
+
+// WatchSuperAdminTransferred is a free log subscription operation binding the contract event 0xc9ea25491d70d4ed75e79cd95324385a03f640075be5c2f8db845362f7e5da1b.
+//
+// Solidity: event SuperAdminTransferred(uint256 indexed proposalId, address indexed oldSuperAdmin, address indexed newSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) WatchSuperAdminTransferred(opts *bind.WatchOpts, sink chan<- *EnterpriseWalletSuperAdminTransferred, proposalId []*big.Int, oldSuperAdmin []common.Address, newSuperAdmin []common.Address) (event.Subscription, error) {
+
+	var proposalIdRule []interface{}
+	for _, proposalIdItem := range proposalId {
+		proposalIdRule = append(proposalIdRule, proposalIdItem)
+	}
+	var oldSuperAdminRule []interface{}
+	for _, oldSuperAdminItem := range oldSuperAdmin {
+		oldSuperAdminRule = append(oldSuperAdminRule, oldSuperAdminItem)
+	}
+	var newSuperAdminRule []interface{}
+	for _, newSuperAdminItem := range newSuperAdmin {
+		newSuperAdminRule = append(newSuperAdminRule, newSuperAdminItem)
+	}
+
+	logs, sub, err := _EnterpriseWallet.contract.WatchLogs(opts, "SuperAdminTransferred", proposalIdRule, oldSuperAdminRule, newSuperAdminRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(EnterpriseWalletSuperAdminTransferred)
+				if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferred", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSuperAdminTransferred is a log parse operation binding the contract event 0xc9ea25491d70d4ed75e79cd95324385a03f640075be5c2f8db845362f7e5da1b.
+//
+// Solidity: event SuperAdminTransferred(uint256 indexed proposalId, address indexed oldSuperAdmin, address indexed newSuperAdmin)
+func (_EnterpriseWallet *EnterpriseWalletFilterer) ParseSuperAdminTransferred(log types.Log) (*EnterpriseWalletSuperAdminTransferred, error) {
+	event := new(EnterpriseWalletSuperAdminTransferred)
+	if err := _EnterpriseWallet.contract.UnpackLog(event, "SuperAdminTransferred", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

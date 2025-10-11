@@ -167,6 +167,10 @@ func showMenu() {
 	fmt.Println("  12. Prepare collectFunds data")
 	fmt.Println("  13. Prepare updateMethodController data")
 	fmt.Println("  14. Prepare updatePaymentAccountController data")
+	fmt.Println("\nSuperAdmin Transfer - Prepare Data:")
+	fmt.Println("  30. Prepare proposeSuperAdminTransfer data")
+	fmt.Println("  31. Prepare confirmSuperAdminTransfer data")
+	fmt.Println("  32. Prepare cancelSuperAdminTransfer data")
 	fmt.Println("\nEnterprise Wallet - Execute on Chain (TX):")
 	fmt.Println("  22. Execute createPaymentAccount")
 	fmt.Println("  23. Execute createCollectionAccount")
@@ -176,6 +180,18 @@ func showMenu() {
 	fmt.Println("  27. Execute collectFunds")
 	fmt.Println("  28. Execute updateMethodController")
 	fmt.Println("  29. Execute updatePaymentAccountController")
+	fmt.Println("\nSuperAdmin Transfer - Execute on Chain (TX):")
+	fmt.Println("  33. Execute proposeSuperAdminTransfer")
+	fmt.Println("  34. Execute confirmSuperAdminTransfer")
+	fmt.Println("  35. Execute cancelSuperAdminTransfer")
+	fmt.Println("\nBatch Operations - Prepare Data:")
+	fmt.Println("  39. Prepare updateMethodControllers (batch with different controllers)")
+	fmt.Println("  40. Prepare setMethodController (batch with same controller)")
+	fmt.Println("  41. Prepare emergencyFreeze")
+	fmt.Println("\nBatch Operations - Execute on Chain (TX):")
+	fmt.Println("  42. Execute updateMethodControllers")
+	fmt.Println("  43. Execute setMethodController")
+	fmt.Println("  44. Execute emergencyFreeze")
 	fmt.Println("\nQuery Functions (View):")
 	fmt.Println("  15. Query payment accounts")
 	fmt.Println("  16. Query collection accounts")
@@ -183,6 +199,10 @@ func showMenu() {
 	fmt.Println("  18. Check if address is payment account")
 	fmt.Println("  19. Check if address is collection account")
 	fmt.Println("  20. Get token allowance")
+	fmt.Println("\nSuperAdmin Transfer - Query:")
+	fmt.Println("  36. Query SuperAdmin transfer proposal")
+	fmt.Println("  37. Check if transfer is valid")
+	fmt.Println("  38. Get current transfer nonce")
 	fmt.Println("\nUtility:")
 	fmt.Println("  21. Run all read-only examples")
 	fmt.Println("  0.  Exit")
@@ -257,6 +277,36 @@ func runExample(ctx *ExampleContext, choice string) {
 		exampleExecuteUpdateMethodController(ctx)
 	case "29":
 		exampleExecuteUpdatePaymentAccountController(ctx)
+	case "30":
+		examplePrepareProposeSuperAdminTransfer(ctx)
+	case "31":
+		examplePrepareConfirmSuperAdminTransfer(ctx)
+	case "32":
+		examplePrepareCancelSuperAdminTransfer(ctx)
+	case "33":
+		exampleExecuteProposeSuperAdminTransfer(ctx)
+	case "34":
+		exampleExecuteConfirmSuperAdminTransfer(ctx)
+	case "35":
+		exampleExecuteCancelSuperAdminTransfer(ctx)
+	case "36":
+		exampleQuerySuperAdminTransfer(ctx)
+	case "37":
+		exampleCheckSuperAdminTransferValid(ctx)
+	case "38":
+		exampleGetSuperAdminTransferNonce(ctx)
+	case "39":
+		examplePrepareUpdateMethodControllers(ctx)
+	case "40":
+		examplePrepareSetMethodController(ctx)
+	case "41":
+		examplePrepareEmergencyFreeze(ctx)
+	case "42":
+		exampleExecuteUpdateMethodControllers(ctx)
+	case "43":
+		exampleExecuteSetMethodController(ctx)
+	case "44":
+		exampleExecuteEmergencyFreeze(ctx)
 	default:
 		fmt.Println("Invalid choice. Please try again.")
 	}
@@ -1470,6 +1520,735 @@ func exampleExecuteUpdatePaymentAccountController(ctx *ExampleContext) {
 
 	if receipt.Status == 1 {
 		fmt.Printf("✓ Payment account controller updated successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+// ============= SuperAdmin Transfer Examples - Prepare Data =============
+
+func examplePrepareProposeSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Propose SuperAdmin Transfer ===")
+	newSuperAdmin := common.HexToAddress("0x4444444444444444444444444444444444444444")
+	timeout := big.NewInt(86400) // 1 day
+
+	data, err := utils.ProposeSuperAdminTransferData(newSuperAdmin, timeout)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("New SuperAdmin: %s\n", newSuperAdmin.Hex())
+	fmt.Printf("Timeout: %s seconds (1 day)\n", timeout.String())
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+func examplePrepareConfirmSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Confirm SuperAdmin Transfer ===")
+	proposalId := big.NewInt(1)
+
+	data, err := utils.ConfirmSuperAdminTransferData(proposalId)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Proposal ID: %s\n", proposalId.String())
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+func examplePrepareCancelSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Cancel SuperAdmin Transfer ===")
+	proposalId := big.NewInt(1)
+
+	data, err := utils.CancelSuperAdminTransferData(proposalId)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Proposal ID: %s\n", proposalId.String())
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+// ============= SuperAdmin Transfer Examples - Execute on Chain =============
+
+func exampleExecuteProposeSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Execute Propose SuperAdmin Transfer ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter new SuperAdmin address: ")
+	newSuperAdminStr := getUserInput()
+	if newSuperAdminStr == "" {
+		fmt.Println("No new SuperAdmin address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter timeout in seconds (press Enter for default 1 day): ")
+	timeoutStr := getUserInput()
+	timeout := big.NewInt(0) // 0 means use default
+	if timeoutStr != "" {
+		timeout.SetString(timeoutStr, 10)
+	}
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  New SuperAdmin: %s\n", newSuperAdminStr)
+	if timeout.Cmp(big.NewInt(0)) == 0 {
+		fmt.Printf("  Timeout: default (1 day)\n")
+	} else {
+		fmt.Printf("  Timeout: %s seconds\n", timeout.String())
+	}
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.ProposeSuperAdminTransfer(auth, common.HexToAddress(newSuperAdminStr), timeout)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ SuperAdmin transfer proposed successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+		fmt.Println("\nNote: Check transaction logs for the proposal ID")
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteConfirmSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Execute Confirm SuperAdmin Transfer ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter proposal ID: ")
+	proposalIdStr := getUserInput()
+	if proposalIdStr == "" {
+		fmt.Println("No proposal ID provided. Cancelled.")
+		return
+	}
+
+	proposalId := new(big.Int)
+	proposalId.SetString(proposalIdStr, 10)
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  Proposal ID: %s\n", proposalId.String())
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.ConfirmSuperAdminTransfer(auth, proposalId)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ SuperAdmin transfer confirmed successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteCancelSuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Execute Cancel SuperAdmin Transfer ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter proposal ID: ")
+	proposalIdStr := getUserInput()
+	if proposalIdStr == "" {
+		fmt.Println("No proposal ID provided. Cancelled.")
+		return
+	}
+
+	proposalId := new(big.Int)
+	proposalId.SetString(proposalIdStr, 10)
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  Proposal ID: %s\n", proposalId.String())
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.CancelSuperAdminTransfer(auth, proposalId)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ SuperAdmin transfer cancelled successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+// ============= SuperAdmin Transfer Examples - Query =============
+
+func exampleQuerySuperAdminTransfer(ctx *ExampleContext) {
+	fmt.Println("=== Query SuperAdmin Transfer Proposal ===")
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+
+	if walletAddrStr == "" {
+		fmt.Println("Using example address...")
+		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
+	}
+
+	fmt.Print("Enter proposal ID: ")
+	proposalIdStr := getUserInput()
+	if proposalIdStr == "" {
+		proposalIdStr = "1"
+	}
+
+	proposalId := new(big.Int)
+	proposalId.SetString(proposalIdStr, 10)
+
+	walletAddr := common.HexToAddress(walletAddrStr)
+	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	transfer, err := wallet.GetSuperAdminTransfer(&bind.CallOpts{}, proposalId)
+	if err != nil {
+		log.Printf("Error querying transfer: %v", err)
+		return
+	}
+
+	fmt.Printf("\nProposal ID: %s\n", proposalId.String())
+	fmt.Printf("Current SuperAdmin: %s\n", transfer.CurrentSuperAdmin.Hex())
+	fmt.Printf("Proposed SuperAdmin: %s\n", transfer.ProposedSuperAdmin.Hex())
+	fmt.Printf("Proposed At: %s\n", transfer.ProposedAt.String())
+	fmt.Printf("Timeout: %s seconds\n", transfer.Timeout.String())
+	fmt.Printf("Is Active: %v\n", transfer.IsActive)
+}
+
+func exampleCheckSuperAdminTransferValid(ctx *ExampleContext) {
+	fmt.Println("=== Check if SuperAdmin Transfer is Valid ===")
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+
+	if walletAddrStr == "" {
+		fmt.Println("Using example address...")
+		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
+	}
+
+	fmt.Print("Enter proposal ID: ")
+	proposalIdStr := getUserInput()
+	if proposalIdStr == "" {
+		proposalIdStr = "1"
+	}
+
+	proposalId := new(big.Int)
+	proposalId.SetString(proposalIdStr, 10)
+
+	walletAddr := common.HexToAddress(walletAddrStr)
+	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	isValid, err := wallet.IsValidSuperAdminTransfer(&bind.CallOpts{}, proposalId)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Proposal ID %s is valid: %v\n", proposalId.String(), isValid)
+}
+
+func exampleGetSuperAdminTransferNonce(ctx *ExampleContext) {
+	fmt.Println("=== Get Current SuperAdmin Transfer Nonce ===")
+	fmt.Print("Enter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+
+	if walletAddrStr == "" {
+		fmt.Println("Using example address...")
+		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
+	}
+
+	walletAddr := common.HexToAddress(walletAddrStr)
+	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	nonce, err := wallet.GetCurrentSuperAdminTransferNonce(&bind.CallOpts{})
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Current SuperAdmin Transfer Nonce: %s\n", nonce.String())
+}
+
+// ============= Batch Operations Examples - Prepare Data =============
+
+func examplePrepareUpdateMethodControllers(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Update Method Controllers (Batch with Different Controllers) ===")
+
+	// Example: Update 3 methods with different controllers
+	methodSigs := [][4]byte{
+		utils.CreatePaymentAccountSelector,
+		utils.CreateCollectionAccountSelector,
+		utils.ApproveTokenForPaymentSelector,
+	}
+
+	controllers := []common.Address{
+		common.HexToAddress("0x1111111111111111111111111111111111111111"),
+		common.HexToAddress("0x2222222222222222222222222222222222222222"),
+		common.HexToAddress("0x3333333333333333333333333333333333333333"),
+	}
+
+	data, err := utils.UpdateMethodControllersData(methodSigs, controllers)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Println("Updating 3 methods with different controllers:")
+	for i, sig := range methodSigs {
+		fmt.Printf("  Method %d: 0x%x -> Controller: %s\n", i+1, sig, controllers[i].Hex())
+	}
+	fmt.Printf("\nCalldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+func examplePrepareSetMethodController(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Set Method Controller (Batch with Same Controller) ===")
+
+	// Example: Set the same controller for multiple methods
+	methodSigs := [][4]byte{
+		utils.TransferETHToPaymentSelector,
+		utils.CollectFundsSelector,
+	}
+
+	controller := common.HexToAddress("0x4444444444444444444444444444444444444444")
+
+	data, err := utils.SetMethodControllerData(methodSigs, controller)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Println("Setting same controller for multiple methods:")
+	fmt.Printf("  Controller: %s\n", controller.Hex())
+	fmt.Println("  Methods:")
+	for i, sig := range methodSigs {
+		fmt.Printf("    %d. 0x%x\n", i+1, sig)
+	}
+	fmt.Printf("\nCalldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+func examplePrepareEmergencyFreeze(ctx *ExampleContext) {
+	fmt.Println("=== Prepare Emergency Freeze ===")
+	fmt.Println("Note: This now requires METHOD CONTROLLER permission (changed from superAdmin)")
+
+	target := common.HexToAddress("0x1111111111111111111111111111111111111111")
+	freeze := true
+
+	data, err := utils.EmergencyFreezeData(target, freeze)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("\nTarget account: %s\n", target.Hex())
+	fmt.Printf("Freeze: %v\n", freeze)
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+// ============= Batch Operations Examples - Execute on Chain =============
+
+func exampleExecuteUpdateMethodControllers(ctx *ExampleContext) {
+	fmt.Println("=== Execute Update Method Controllers (Batch) ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+	fmt.Println("This allows updating multiple methods with different controllers in one transaction.")
+
+	fmt.Print("\nEnter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("How many methods do you want to update? ")
+	countStr := getUserInput()
+	if countStr == "" {
+		fmt.Println("No count provided. Cancelled.")
+		return
+	}
+
+	var count int
+	fmt.Sscanf(countStr, "%d", &count)
+	if count <= 0 {
+		fmt.Println("Invalid count. Cancelled.")
+		return
+	}
+
+	methodSigs := make([][4]byte, count)
+	controllers := make([]common.Address, count)
+
+	for i := 0; i < count; i++ {
+		fmt.Printf("\nMethod %d:\n", i+1)
+		fmt.Print("  Enter method selector (e.g., 0x08f25c4a): ")
+		methodSigStr := getUserInput()
+		if methodSigStr == "" {
+			fmt.Println("  No method selector provided. Cancelled.")
+			return
+		}
+
+		methodSigStr = strings.TrimPrefix(methodSigStr, "0x")
+		methodBytes := common.FromHex(methodSigStr)
+		if len(methodBytes) != 4 {
+			fmt.Println("  Invalid method selector (must be 4 bytes). Cancelled.")
+			return
+		}
+		copy(methodSigs[i][:], methodBytes)
+
+		fmt.Print("  Enter controller address: ")
+		controllerStr := getUserInput()
+		if controllerStr == "" {
+			fmt.Println("  No controller address provided. Cancelled.")
+			return
+		}
+		controllers[i] = common.HexToAddress(controllerStr)
+	}
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  Updating %d methods:\n", count)
+	for i := 0; i < count; i++ {
+		fmt.Printf("    %d. Method 0x%x -> Controller %s\n", i+1, methodSigs[i], controllers[i].Hex())
+	}
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.UpdateMethodControllers(auth, methodSigs, controllers)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ Method controllers updated successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteSetMethodController(ctx *ExampleContext) {
+	fmt.Println("=== Execute Set Method Controller (Batch with Same Controller) ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+	fmt.Println("This allows setting the same controller for multiple methods in one transaction.")
+
+	fmt.Print("\nEnter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter controller address (will be set for all methods): ")
+	controllerStr := getUserInput()
+	if controllerStr == "" {
+		fmt.Println("No controller address provided. Cancelled.")
+		return
+	}
+	controller := common.HexToAddress(controllerStr)
+
+	fmt.Print("How many methods do you want to update? ")
+	countStr := getUserInput()
+	if countStr == "" {
+		fmt.Println("No count provided. Cancelled.")
+		return
+	}
+
+	var count int
+	fmt.Sscanf(countStr, "%d", &count)
+	if count <= 0 {
+		fmt.Println("Invalid count. Cancelled.")
+		return
+	}
+
+	methodSigs := make([][4]byte, count)
+
+	for i := 0; i < count; i++ {
+		fmt.Printf("Enter method selector %d (e.g., 0x08f25c4a): ", i+1)
+		methodSigStr := getUserInput()
+		if methodSigStr == "" {
+			fmt.Println("No method selector provided. Cancelled.")
+			return
+		}
+
+		methodSigStr = strings.TrimPrefix(methodSigStr, "0x")
+		methodBytes := common.FromHex(methodSigStr)
+		if len(methodBytes) != 4 {
+			fmt.Println("Invalid method selector (must be 4 bytes). Cancelled.")
+			return
+		}
+		copy(methodSigs[i][:], methodBytes)
+	}
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  Controller: %s\n", controller.Hex())
+	fmt.Printf("  Updating %d methods:\n", count)
+	for i, sig := range methodSigs {
+		fmt.Printf("    %d. 0x%x\n", i+1, sig)
+	}
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.SetMethodController(auth, methodSigs, controller)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ Method controller set successfully!\n")
+		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
+		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteEmergencyFreeze(ctx *ExampleContext) {
+	fmt.Println("=== Execute Emergency Freeze ===")
+	fmt.Println("WARNING: This will send an actual transaction!")
+	fmt.Println("Note: This now requires METHOD CONTROLLER permission (changed from superAdmin)")
+
+	fmt.Print("\nEnter enterprise wallet address: ")
+	walletAddrStr := getUserInput()
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	fmt.Print("Enter target account address to freeze/unfreeze: ")
+	targetStr := getUserInput()
+	if targetStr == "" {
+		fmt.Println("No target address provided. Cancelled.")
+		return
+	}
+	target := common.HexToAddress(targetStr)
+
+	fmt.Print("Freeze (true) or Unfreeze (false)? Enter 'true' or 'false': ")
+	freezeStr := getUserInput()
+	freeze := freezeStr == "true"
+
+	fmt.Printf("\nReview transaction:\n")
+	fmt.Printf("  Wallet: %s\n", walletAddrStr)
+	fmt.Printf("  Target: %s\n", target.Hex())
+	fmt.Printf("  Action: %v\n", map[bool]string{true: "FREEZE", false: "UNFREEZE"}[freeze])
+	fmt.Print("\nType 'yes' to confirm: ")
+
+	confirmation := getUserInput()
+	if confirmation != "yes" {
+		fmt.Println("Transaction cancelled.")
+		return
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.EmergencyFreeze(auth, target, freeze)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ Emergency freeze executed successfully!\n")
 		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
 		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
 	} else {
