@@ -313,7 +313,7 @@ func EmergencyFreezeData(target common.Address, freeze bool) ([]byte, error) {
 
 // CreateSafeAndPaymentAccountData encodes createSafeAndPaymentAccount call data
 func CreateSafeAndPaymentAccountData(
-	proxyFactory common.Address,
+	safeProxyFactory common.Address,
 	safeSingleton common.Address,
 	params SafeSetupParams,
 	name string,
@@ -349,7 +349,7 @@ func CreateSafeAndPaymentAccountData(
 
 	data, err := parsedABI.Pack(
 		"createSafeAndPaymentAccount",
-		proxyFactory,
+		safeProxyFactory,
 		safeSingleton,
 		setup,
 		name,
@@ -363,7 +363,7 @@ func CreateSafeAndPaymentAccountData(
 
 // CreateSafeAndCollectionAccountData encodes createSafeAndCollectionAccount call data
 func CreateSafeAndCollectionAccountData(
-	proxyFactory common.Address,
+	safeProxyFactory common.Address,
 	safeSingleton common.Address,
 	params SafeSetupParams,
 	name string,
@@ -400,7 +400,7 @@ func CreateSafeAndCollectionAccountData(
 
 	data, err := parsedABI.Pack(
 		"createSafeAndCollectionAccount",
-		proxyFactory,
+		safeProxyFactory,
 		safeSingleton,
 		setup,
 		name,

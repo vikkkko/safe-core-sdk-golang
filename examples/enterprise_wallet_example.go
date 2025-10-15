@@ -26,6 +26,8 @@ const (
 	// Enterprise Wallet deployed contracts on your network
 	FactoryAddress     = "0xC5473e192d07420B09b684086d3631830b268bE7"
 	ImplementationAddr = "0x5D92e1c1B4F8fB2a291B9A44451dBE4eAAe2b286"
+	SafeFactoryAddress = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
+	SafeSingletonAddress = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
 )
 
 // Context holds all necessary data for examples
@@ -320,6 +322,8 @@ func main() {
 
 	fmt.Printf("Using account: %s\n", ctx.FromAddress.Hex())
 	fmt.Printf("Factory address: %s\n", FactoryAddress)
+	fmt.Printf("Safe factory address: %s\n", SafeFactoryAddress)
+	fmt.Printf("Safe singleton address: %s\n", SafeSingletonAddress)
 	fmt.Printf("Implementation address: %s\n\n", ImplementationAddr)
 
 	// Show menu and run examples
@@ -968,8 +972,8 @@ func safeBigInt(value *big.Int) *big.Int {
 func examplePrepareCreateSafeAndPaymentAccount(ctx *ExampleContext) {
 	fmt.Println("=== Prepare createSafeAndPaymentAccount Data ===")
 
-	proxyFactory := common.HexToAddress(FactoryAddress)
-	safeSingleton := common.HexToAddress("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552") // Safe v1.4.1 mainnet copy (replace per network)
+	safeProxyFactory := common.HexToAddress(SafeFactoryAddress)
+	safeSingleton := common.HexToAddress(SafeSingletonAddress) // Safe v1.4.1 mainnet copy (replace per network)
 
 	params := utils.SafeSetupParams{
 		Owners:          []common.Address{ctx.FromAddress},
@@ -983,13 +987,13 @@ func examplePrepareCreateSafeAndPaymentAccount(ctx *ExampleContext) {
 		SaltNonce:       big.NewInt(0),
 	}
 
-	data, err := utils.CreateSafeAndPaymentAccountData(proxyFactory, safeSingleton, params, "Treasury Payment Account")
+	data, err := utils.CreateSafeAndPaymentAccountData(safeProxyFactory, safeSingleton, params, "Treasury Payment Account")
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	fmt.Printf("Proxy factory: %s\n", proxyFactory.Hex())
+	fmt.Printf("Proxy factory: %s\n", safeProxyFactory.Hex())
 	fmt.Printf("Safe singleton: %s\n", safeSingleton.Hex())
 	fmt.Printf("Owners: %s\n", ctx.FromAddress.Hex())
 	fmt.Printf("Threshold: %s\n", params.Threshold.String())
@@ -1447,8 +1451,8 @@ func exampleExecuteCreateSafeAndPaymentAccount(ctx *ExampleContext) {
 		return
 	}
 
-	proxyFactoryStr := promptWithDefault("Proxy factory address", FactoryAddress)
-	safeSingletonStr := promptWithDefault("Safe singleton address", "0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552")
+	safeProxyFactoryStr := promptWithDefault("Proxy factory address", SafeFactoryAddress)
+	safeSingletonStr := promptWithDefault("Safe singleton address", SafeSingletonAddress)
 	ownersInput := promptWithDefault("Safe owners (comma separated)", ctx.FromAddress.Hex())
 	owners, err := parseAddressList(ownersInput)
 	if err != nil || len(owners) == 0 {
@@ -1498,7 +1502,7 @@ func exampleExecuteCreateSafeAndPaymentAccount(ctx *ExampleContext) {
 
 	tx, err := wallet.CreateSafeAndPaymentAccount(
 		auth,
-		common.HexToAddress(proxyFactoryStr),
+		common.HexToAddress(safeProxyFactoryStr),
 		common.HexToAddress(safeSingletonStr),
 		params,
 		name,
