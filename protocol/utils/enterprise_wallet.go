@@ -8,178 +8,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	projectabi "github.com/vikkkko/safe-core-sdk-golang/abi"
 )
 
-// EnterpriseWalletFactoryABI contains the ABI for the EnterpriseWalletFactory contract
-const EnterpriseWalletFactoryABI = `[
-	{
-		"type": "function",
-		"name": "createWallet",
-		"inputs": [
-			{"name": "implementation", "type": "address"},
-			{"name": "salt", "type": "bytes32"},
-			{
-				"name": "params",
-				"type": "tuple",
-				"components": [
-					{"name": "methods", "type": "bytes4[]"},
-					{
-						"name": "configs",
-						"type": "tuple[]",
-						"components": [
-							{"name": "controller", "type": "address"}
-						]
-					},
-					{"name": "superAdmin", "type": "address"}
-				]
-			}
-		],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "predictWalletAddress",
-		"inputs": [
-			{"name": "implementation", "type": "address"},
-			{"name": "salt", "type": "bytes32"},
-			{"name": "deployer", "type": "address"}
-		],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "isImplementationWhitelisted",
-		"inputs": [{"name": "implementation", "type": "address"}],
-		"outputs": [{"name": "", "type": "bool"}]
-	}
-]`
+// EnterpriseWalletFactoryABI contains the ABI for the EnterpriseWalletFactory contract.
+var EnterpriseWalletFactoryABI = string(projectabi.EnterpriseWalletFactory)
 
-// EnterpriseWalletABI contains the key functions from the EnterpriseWallet contract
-const EnterpriseWalletABI = `[
-	{
-		"type": "function",
-		"name": "createPaymentAccount",
-		"inputs": [
-			{"name": "name", "type": "string"},
-			{"name": "controller", "type": "address"}
-		],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "createCollectionAccount",
-		"inputs": [
-			{"name": "name", "type": "string"},
-			{"name": "collectionTarget", "type": "address"}
-		],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "approveTokenForPayment",
-		"inputs": [
-			{"name": "token", "type": "address"},
-			{"name": "paymentAccount", "type": "address"},
-			{"name": "amount", "type": "uint256"}
-		],
-		"outputs": []
-	},
-	{
-		"type": "function",
-		"name": "transferETHToPayment",
-		"inputs": [
-			{"name": "paymentAccount", "type": "address"},
-			{"name": "amount", "type": "uint256"}
-		],
-		"outputs": []
-	},
-	{
-		"type": "function",
-		"name": "collectFunds",
-		"inputs": [
-			{"name": "token", "type": "address"},
-			{"name": "collectionAccount", "type": "address"}
-		],
-		"outputs": []
-	},
-	{
-		"type": "function",
-		"name": "getPaymentAccounts",
-		"inputs": [],
-		"outputs": [
-			{
-				"name": "",
-				"type": "tuple[]",
-				"components": [
-					{"name": "account", "type": "address"},
-					{"name": "createdAt", "type": "uint256"},
-					{"name": "isActive", "type": "bool"}
-				]
-			}
-		]
-	},
-	{
-		"type": "function",
-		"name": "getCollectionAccounts",
-		"inputs": [],
-		"outputs": [
-			{
-				"name": "",
-				"type": "tuple[]",
-				"components": [
-					{"name": "account", "type": "address"},
-					{"name": "createdAt", "type": "uint256"},
-					{"name": "isActive", "type": "bool"}
-				]
-			}
-		]
-	},
-	{
-		"type": "function",
-		"name": "getSuperAdmin",
-		"inputs": [],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "predictPaymentAccountAddress",
-		"inputs": [],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "predictCollectionAccountAddress",
-		"inputs": [],
-		"outputs": [{"name": "", "type": "address"}]
-	},
-	{
-		"type": "function",
-		"name": "updateMethodControllers",
-		"inputs": [
-			{"name": "methodSigs", "type": "bytes4[]"},
-			{"name": "controllers", "type": "address[]"}
-		],
-		"outputs": []
-	},
-	{
-		"type": "function",
-		"name": "setMethodController",
-		"inputs": [
-			{"name": "methodSigs", "type": "bytes4[]"},
-			{"name": "controller", "type": "address"}
-		],
-		"outputs": []
-	},
-	{
-		"type": "function",
-		"name": "emergencyFreeze",
-		"inputs": [
-			{"name": "target", "type": "address"},
-			{"name": "freeze", "type": "bool"}
-		],
-		"outputs": []
-	}
-]`
+// EnterpriseWalletABI contains the ABI for the EnterpriseWallet contract.
+var EnterpriseWalletABI = string(projectabi.EnterpriseWallet)
 
 // MethodConfig represents the configuration for a method in the enterprise wallet
 type MethodConfig struct {
@@ -191,6 +27,19 @@ type InitParams struct {
 	Methods    [][4]byte
 	Configs    []MethodConfig
 	SuperAdmin common.Address
+}
+
+// SafeSetupParams mirrors the Safe setup struct required by enterprise wallet batch deployment helpers
+type SafeSetupParams struct {
+	Owners          []common.Address
+	Threshold       *big.Int
+	To              common.Address
+	Data            []byte
+	FallbackHandler common.Address
+	PaymentToken    common.Address
+	Payment         *big.Int
+	PaymentReceiver common.Address
+	SaltNonce       *big.Int
 }
 
 // CreateEnterpriseWalletData creates the call data for deploying an enterprise wallet through the factory
@@ -342,16 +191,18 @@ func GetMethodSelector(signature string) [4]byte {
 
 // Common method selectors for enterprise wallet
 var (
-	CreatePaymentAccountSelector    = GetMethodSelector("createPaymentAccount(string,address)")
-	CreateCollectionAccountSelector = GetMethodSelector("createCollectionAccount(string,address)")
-	ApproveTokenForPaymentSelector  = GetMethodSelector("approveTokenForPayment(address,address,uint256)")
-	TransferETHToPaymentSelector    = GetMethodSelector("transferETHToPayment(address,uint256)")
-	CollectFundsSelector            = GetMethodSelector("collectFunds(address,address)")
+	CreatePaymentAccountSelector           = GetMethodSelector("createPaymentAccount(string,address)")
+	CreateCollectionAccountSelector        = GetMethodSelector("createCollectionAccount(string,address)")
+	ApproveTokenForPaymentSelector         = GetMethodSelector("approveTokenForPayment(address,address,uint256)")
+	TransferETHToPaymentSelector           = GetMethodSelector("transferETHToPayment(address,uint256)")
+	CollectFundsSelector                   = GetMethodSelector("collectFunds(address,address)")
+	CreateSafeAndPaymentAccountSelector    = GetMethodSelector("createSafeAndPaymentAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string)")
+	CreateSafeAndCollectionAccountSelector = GetMethodSelector("createSafeAndCollectionAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string,address)")
 
 	// SuperAdmin transfer selectors
 	ProposeSuperAdminTransferSelector = GetMethodSelector("proposeSuperAdminTransfer(address,uint256)")
-	ConfirmSuperAdminTransferSelector = GetMethodSelector("confirmSuperAdminTransfer(uint256)")
-	CancelSuperAdminTransferSelector  = GetMethodSelector("cancelSuperAdminTransfer(uint256)")
+	ConfirmSuperAdminTransferSelector = GetMethodSelector("confirmSuperAdminTransfer()")
+	CancelSuperAdminTransferSelector  = GetMethodSelector("cancelSuperAdminTransfer()")
 )
 
 // ProposeSuperAdminTransferData creates the call data for proposing a super admin transfer
@@ -372,31 +223,31 @@ func ProposeSuperAdminTransferData(newSuperAdmin common.Address, timeout *big.In
 }
 
 // ConfirmSuperAdminTransferData creates the call data for confirming a super admin transfer
-func ConfirmSuperAdminTransferData(proposalId *big.Int) ([]byte, error) {
-	selector := ConfirmSuperAdminTransferSelector
+func ConfirmSuperAdminTransferData() ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
 
-	// Encode parameter (uint256)
-	data := make([]byte, 4+32)
-	copy(data[0:4], selector[:])
-
-	// Encode proposalId as uint256
-	proposalIdBytes := proposalId.Bytes()
-	copy(data[4+32-len(proposalIdBytes):4+32], proposalIdBytes)
+	data, err := parsedABI.Pack("confirmSuperAdminTransfer")
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode confirmSuperAdminTransfer call: %w", err)
+	}
 
 	return data, nil
 }
 
 // CancelSuperAdminTransferData creates the call data for cancelling a super admin transfer
-func CancelSuperAdminTransferData(proposalId *big.Int) ([]byte, error) {
-	selector := CancelSuperAdminTransferSelector
+func CancelSuperAdminTransferData() ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
 
-	// Encode parameter (uint256)
-	data := make([]byte, 4+32)
-	copy(data[0:4], selector[:])
-
-	// Encode proposalId as uint256
-	proposalIdBytes := proposalId.Bytes()
-	copy(data[4+32-len(proposalIdBytes):4+32], proposalIdBytes)
+	data, err := parsedABI.Pack("cancelSuperAdminTransfer")
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode cancelSuperAdminTransfer call: %w", err)
+	}
 
 	return data, nil
 }
@@ -458,4 +309,113 @@ func EmergencyFreezeData(target common.Address, freeze bool) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// CreateSafeAndPaymentAccountData encodes createSafeAndPaymentAccount call data
+func CreateSafeAndPaymentAccountData(
+	proxyFactory common.Address,
+	safeSingleton common.Address,
+	params SafeSetupParams,
+	name string,
+) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	type abiSafeSetupParams struct {
+		Owners          []common.Address
+		Threshold       *big.Int
+		To              common.Address
+		Data            []byte
+		FallbackHandler common.Address
+		PaymentToken    common.Address
+		Payment         *big.Int
+		PaymentReceiver common.Address
+		SaltNonce       *big.Int
+	}
+
+	setup := abiSafeSetupParams{
+		Owners:          params.Owners,
+		Threshold:       safeBigIntOrZero(params.Threshold),
+		To:              params.To,
+		Data:            params.Data,
+		FallbackHandler: params.FallbackHandler,
+		PaymentToken:    params.PaymentToken,
+		Payment:         safeBigIntOrZero(params.Payment),
+		PaymentReceiver: params.PaymentReceiver,
+		SaltNonce:       safeBigIntOrZero(params.SaltNonce),
+	}
+
+	data, err := parsedABI.Pack(
+		"createSafeAndPaymentAccount",
+		proxyFactory,
+		safeSingleton,
+		setup,
+		name,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode createSafeAndPaymentAccount call: %w", err)
+	}
+
+	return data, nil
+}
+
+// CreateSafeAndCollectionAccountData encodes createSafeAndCollectionAccount call data
+func CreateSafeAndCollectionAccountData(
+	proxyFactory common.Address,
+	safeSingleton common.Address,
+	params SafeSetupParams,
+	name string,
+	collectionTarget common.Address,
+) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	type abiSafeSetupParams struct {
+		Owners          []common.Address
+		Threshold       *big.Int
+		To              common.Address
+		Data            []byte
+		FallbackHandler common.Address
+		PaymentToken    common.Address
+		Payment         *big.Int
+		PaymentReceiver common.Address
+		SaltNonce       *big.Int
+	}
+
+	setup := abiSafeSetupParams{
+		Owners:          params.Owners,
+		Threshold:       safeBigIntOrZero(params.Threshold),
+		To:              params.To,
+		Data:            params.Data,
+		FallbackHandler: params.FallbackHandler,
+		PaymentToken:    params.PaymentToken,
+		Payment:         safeBigIntOrZero(params.Payment),
+		PaymentReceiver: params.PaymentReceiver,
+		SaltNonce:       safeBigIntOrZero(params.SaltNonce),
+	}
+
+	data, err := parsedABI.Pack(
+		"createSafeAndCollectionAccount",
+		proxyFactory,
+		safeSingleton,
+		setup,
+		name,
+		collectionTarget,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode createSafeAndCollectionAccount call: %w", err)
+	}
+
+	return data, nil
+}
+
+func safeBigIntOrZero(value *big.Int) *big.Int {
+	if value == nil {
+		return big.NewInt(0)
+	}
+	return value
 }

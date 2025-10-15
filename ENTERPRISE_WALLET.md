@@ -9,11 +9,12 @@
 - 💰 **Collection Accounts** - 用于收款的子账户
 - 🔐 **Method-level Access Control** - 每个方法可由不同的Safe多签钱包控制
 - 👑 **Super Admin** - 超级管理员可以更新权限和应急控制
+- ⚙️ **一键创建 Safe + 业务账户** - 通过 `createSafeAndPaymentAccount` / `createSafeAndCollectionAccount` 在同一笔交易里部署 Safe 并初始化企业钱包子账户
 
 ## 已部署合约
 
-- **Factory合约**: `0x19cd09AA77a74f92fC12D4D2f5D63ea61193E157`
-- **Implementation合约**: `0x3d6850a4A9790c3aD3924A5d66b4fEEC8cd25bE2`
+- **Factory合约**: `0xC5473e192d07420B09b684086d3631830b268bE7`
+- **Implementation合约**: `0x5D92e1c1B4F8fB2a291B9A44451dBE4eAAe2b286`
 
 ## 快速开始
 
@@ -35,7 +36,7 @@ import (
 
 // 连接到工厂合约
 factoryContract, err := contracts.NewEnterpriseWalletFactory(
-    common.HexToAddress("0x19cd09AA77a74f92fC12D4D2f5D63ea61193E157"),
+    common.HexToAddress("0xC5473e192d07420B09b684086d3631830b268bE7"),
     client,
 )
 

@@ -8,22 +8,24 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
-	"github.com/vikkkko/safe-core-sdk-golang/protocol/contracts"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
 )
 
 const (
 	// Enterprise Wallet deployed contracts on your network
-	FactoryAddress     = "0x19cd09AA77a74f92fC12D4D2f5D63ea61193E157"
-	ImplementationAddr = "0x3d6850a4A9790c3aD3924A5d66b4fEEC8cd25bE2"
+	FactoryAddress     = "0xC5473e192d07420B09b684086d3631830b268bE7"
+	ImplementationAddr = "0x5D92e1c1B4F8fB2a291B9A44451dBE4eAAe2b286"
 )
 
 // Context holds all necessary data for examples
@@ -33,7 +35,274 @@ type ExampleContext struct {
 	FromAddress     common.Address
 	ChainID         *big.Int
 	Auth            *bind.TransactOpts
-	FactoryContract *contracts.EnterpriseWalletFactory
+	FactoryContract *EnterpriseWalletFactoryContract
+}
+
+// EnterpriseWalletFactoryContract provides typed helpers for the factory contract.
+type EnterpriseWalletFactoryContract struct {
+	address  common.Address
+	abi      ethabi.ABI
+	contract *bind.BoundContract
+}
+
+// EnterpriseWalletContract provides typed helpers for the wallet contract.
+type EnterpriseWalletContract struct {
+	address  common.Address
+	abi      ethabi.ABI
+	contract *bind.BoundContract
+}
+
+type WalletAccountInfo struct {
+	Account   common.Address
+	CreatedAt *big.Int
+	IsActive  bool
+}
+
+type SuperAdminTransfer struct {
+	CurrentSuperAdmin  common.Address
+	ProposedSuperAdmin common.Address
+	ProposedAt         *big.Int
+	Timeout            *big.Int
+	IsActive           bool
+}
+
+// NewEnterpriseWalletFactoryContract creates a factory helper.
+func NewEnterpriseWalletFactoryContract(address common.Address, backend bind.ContractBackend) (*EnterpriseWalletFactoryContract, error) {
+	parsed, err := ethabi.JSON(strings.NewReader(utils.EnterpriseWalletFactoryABI))
+	if err != nil {
+		return nil, fmt.Errorf("parse factory ABI: %w", err)
+	}
+	bound := bind.NewBoundContract(address, parsed, backend, backend, backend)
+	return &EnterpriseWalletFactoryContract{
+		address:  address,
+		abi:      parsed,
+		contract: bound,
+	}, nil
+}
+
+// NewEnterpriseWalletContract creates a wallet helper for a specific address.
+func NewEnterpriseWalletContract(address common.Address, backend bind.ContractBackend) (*EnterpriseWalletContract, error) {
+	parsed, err := ethabi.JSON(strings.NewReader(utils.EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("parse wallet ABI: %w", err)
+	}
+	bound := bind.NewBoundContract(address, parsed, backend, backend, backend)
+	return &EnterpriseWalletContract{
+		address:  address,
+		abi:      parsed,
+		contract: bound,
+	}, nil
+}
+
+type factoryInitParams struct {
+	Methods    [][4]byte
+	Configs    []utils.MethodConfig
+	SuperAdmin common.Address
+}
+
+func (f *EnterpriseWalletFactoryContract) IsImplementationWhitelisted(opts *bind.CallOpts, implementation common.Address) (bool, error) {
+	var out []interface{}
+	if err := f.contract.Call(opts, &out, "isImplementationWhitelisted", implementation); err != nil {
+		return false, err
+	}
+	return *ethabi.ConvertType(out[0], new(bool)).(*bool), nil
+}
+
+func (f *EnterpriseWalletFactoryContract) GetWhitelistedImplementations(opts *bind.CallOpts) ([]common.Address, error) {
+	var out []interface{}
+	if err := f.contract.Call(opts, &out, "getWhitelistedImplementations"); err != nil {
+		return nil, err
+	}
+	return *ethabi.ConvertType(out[0], new([]common.Address)).(*[]common.Address), nil
+}
+
+func (f *EnterpriseWalletFactoryContract) PredictWalletAddress(opts *bind.CallOpts, implementation common.Address, salt [32]byte, deployer common.Address) (common.Address, error) {
+	var out []interface{}
+	if err := f.contract.Call(opts, &out, "predictWalletAddress", implementation, salt, deployer); err != nil {
+		return common.Address{}, err
+	}
+	return *ethabi.ConvertType(out[0], new(common.Address)).(*common.Address), nil
+}
+
+func (f *EnterpriseWalletFactoryContract) CreateWallet(auth *bind.TransactOpts, implementation common.Address, salt [32]byte, params factoryInitParams) (*types.Transaction, error) {
+	return f.contract.Transact(auth, "createWallet", implementation, salt, params)
+}
+
+func (w *EnterpriseWalletContract) GetPaymentAccounts(opts *bind.CallOpts) ([]WalletAccountInfo, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "getPaymentAccounts"); err != nil {
+		return nil, err
+	}
+	type accountInfo struct {
+		Account   common.Address
+		CreatedAt *big.Int
+		IsActive  bool
+	}
+	outArr := *ethabi.ConvertType(out[0], new([]accountInfo)).(*[]accountInfo)
+	accounts := make([]WalletAccountInfo, len(outArr))
+	for i, item := range outArr {
+		accounts[i] = WalletAccountInfo{Account: item.Account, CreatedAt: item.CreatedAt, IsActive: item.IsActive}
+	}
+	return accounts, nil
+}
+
+func (w *EnterpriseWalletContract) GetCollectionAccounts(opts *bind.CallOpts) ([]WalletAccountInfo, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "getCollectionAccounts"); err != nil {
+		return nil, err
+	}
+	type accountInfo struct {
+		Account   common.Address
+		CreatedAt *big.Int
+		IsActive  bool
+	}
+	outArr := *ethabi.ConvertType(out[0], new([]accountInfo)).(*[]accountInfo)
+	accounts := make([]WalletAccountInfo, len(outArr))
+	for i, item := range outArr {
+		accounts[i] = WalletAccountInfo{Account: item.Account, CreatedAt: item.CreatedAt, IsActive: item.IsActive}
+	}
+	return accounts, nil
+}
+
+func (w *EnterpriseWalletContract) GetMethodConfig(opts *bind.CallOpts, method [4]byte) (utils.MethodConfig, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "getMethodConfig", method); err != nil {
+		return utils.MethodConfig{}, err
+	}
+	type methodConfig struct {
+		Controller common.Address
+	}
+	result := *ethabi.ConvertType(out[0], new(methodConfig)).(*methodConfig)
+	return utils.MethodConfig{Controller: result.Controller}, nil
+}
+
+func (w *EnterpriseWalletContract) IsPaymentAccount(opts *bind.CallOpts, account common.Address) (bool, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "isPaymentAccount", account); err != nil {
+		return false, err
+	}
+	return *ethabi.ConvertType(out[0], new(bool)).(*bool), nil
+}
+
+func (w *EnterpriseWalletContract) IsCollectionAccount(opts *bind.CallOpts, account common.Address) (bool, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "isCollectionAccount", account); err != nil {
+		return false, err
+	}
+	return *ethabi.ConvertType(out[0], new(bool)).(*bool), nil
+}
+
+func (w *EnterpriseWalletContract) CreatePaymentAccount(auth *bind.TransactOpts, name string, controller common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "createPaymentAccount", name, controller)
+}
+
+func (w *EnterpriseWalletContract) CreateCollectionAccount(auth *bind.TransactOpts, name string, target common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "createCollectionAccount", name, target)
+}
+
+func (w *EnterpriseWalletContract) ApproveTokenForPayment(auth *bind.TransactOpts, token, paymentAccount common.Address, amount *big.Int) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "approveTokenForPayment", token, paymentAccount, amount)
+}
+
+func (w *EnterpriseWalletContract) TransferETHToPayment(auth *bind.TransactOpts, paymentAccount common.Address, amount *big.Int) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "transferETHToPayment", paymentAccount, amount)
+}
+
+func (w *EnterpriseWalletContract) SetCollectionTarget(auth *bind.TransactOpts, collectionAccount, target common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "setCollectionTarget", collectionAccount, target)
+}
+
+func (w *EnterpriseWalletContract) CollectFunds(auth *bind.TransactOpts, token, collectionAccount common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "collectFunds", token, collectionAccount)
+}
+
+func (w *EnterpriseWalletContract) CreateSafeAndPaymentAccount(
+	auth *bind.TransactOpts,
+	proxyFactory common.Address,
+	safeSingleton common.Address,
+	params utils.SafeSetupParams,
+	name string,
+) (*types.Transaction, error) {
+	setup := convertSafeSetupParams(params)
+	return w.contract.Transact(auth, "createSafeAndPaymentAccount", proxyFactory, safeSingleton, setup, name)
+}
+
+func (w *EnterpriseWalletContract) CreateSafeAndCollectionAccount(
+	auth *bind.TransactOpts,
+	proxyFactory common.Address,
+	safeSingleton common.Address,
+	params utils.SafeSetupParams,
+	name string,
+	collectionTarget common.Address,
+) (*types.Transaction, error) {
+	setup := convertSafeSetupParams(params)
+	return w.contract.Transact(auth, "createSafeAndCollectionAccount", proxyFactory, safeSingleton, setup, name, collectionTarget)
+}
+
+func (w *EnterpriseWalletContract) UpdateMethodController(auth *bind.TransactOpts, method [4]byte, controller common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "updateMethodController", method, controller)
+}
+
+func (w *EnterpriseWalletContract) UpdateMethodControllers(auth *bind.TransactOpts, methods [][4]byte, controllers []common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "updateMethodControllers", methods, controllers)
+}
+
+func (w *EnterpriseWalletContract) SetMethodController(auth *bind.TransactOpts, methods [][4]byte, controller common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "setMethodController", methods, controller)
+}
+
+func (w *EnterpriseWalletContract) UpdatePaymentAccountController(auth *bind.TransactOpts, paymentAccount, controller common.Address) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "updatePaymentAccountController", paymentAccount, controller)
+}
+
+func (w *EnterpriseWalletContract) EmergencyFreeze(auth *bind.TransactOpts, target common.Address, freeze bool) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "emergencyFreeze", target, freeze)
+}
+
+func (w *EnterpriseWalletContract) EmergencyPause(auth *bind.TransactOpts, pause bool) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "emergencyPause", pause)
+}
+
+func (w *EnterpriseWalletContract) ProposeSuperAdminTransfer(auth *bind.TransactOpts, newSuperAdmin common.Address, timeout *big.Int) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "proposeSuperAdminTransfer", newSuperAdmin, timeout)
+}
+
+func (w *EnterpriseWalletContract) ConfirmSuperAdminTransfer(auth *bind.TransactOpts) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "confirmSuperAdminTransfer")
+}
+
+func (w *EnterpriseWalletContract) CancelSuperAdminTransfer(auth *bind.TransactOpts) (*types.Transaction, error) {
+	return w.contract.Transact(auth, "cancelSuperAdminTransfer")
+}
+
+func (w *EnterpriseWalletContract) GetSuperAdminTransfer(opts *bind.CallOpts) (SuperAdminTransfer, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "getSuperAdminTransfer"); err != nil {
+		return SuperAdminTransfer{}, err
+	}
+	type superAdminTransfer struct {
+		CurrentSuperAdmin  common.Address
+		ProposedSuperAdmin common.Address
+		ProposedAt         *big.Int
+		Timeout            *big.Int
+		IsActive           bool
+	}
+	result := *ethabi.ConvertType(out[0], new(superAdminTransfer)).(*superAdminTransfer)
+	return SuperAdminTransfer{
+		CurrentSuperAdmin:  result.CurrentSuperAdmin,
+		ProposedSuperAdmin: result.ProposedSuperAdmin,
+		ProposedAt:         result.ProposedAt,
+		Timeout:            result.Timeout,
+		IsActive:           result.IsActive,
+	}, nil
+}
+
+func (w *EnterpriseWalletContract) IsValidSuperAdminTransfer(opts *bind.CallOpts) (bool, error) {
+	var out []interface{}
+	if err := w.contract.Call(opts, &out, "isValidSuperAdminTransfer"); err != nil {
+		return false, err
+	}
+	return *ethabi.ConvertType(out[0], new(bool)).(*bool), nil
 }
 
 func main() {
@@ -131,7 +400,7 @@ func initializeContext() (*ExampleContext, error) {
 	auth.GasPrice = gasPrice
 
 	// Create factory contract instance
-	factoryContract, err := contracts.NewEnterpriseWalletFactory(common.HexToAddress(FactoryAddress), client)
+	factoryContract, err := NewEnterpriseWalletFactoryContract(common.HexToAddress(FactoryAddress), client)
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("failed to instantiate factory contract: %w", err)
@@ -167,23 +436,27 @@ func showMenu() {
 	fmt.Println("  12. Prepare collectFunds data")
 	fmt.Println("  13. Prepare updateMethodController data")
 	fmt.Println("  14. Prepare updatePaymentAccountController data")
+	fmt.Println("  15. Prepare createSafeAndPaymentAccount data")
+	fmt.Println("  16. Prepare createSafeAndCollectionAccount data")
 	fmt.Println("\nSuperAdmin Transfer - Prepare Data:")
-	fmt.Println("  30. Prepare proposeSuperAdminTransfer data")
-	fmt.Println("  31. Prepare confirmSuperAdminTransfer data")
-	fmt.Println("  32. Prepare cancelSuperAdminTransfer data")
+	fmt.Println("  31. Prepare proposeSuperAdminTransfer data")
+	fmt.Println("  32. Prepare confirmSuperAdminTransfer data")
+	fmt.Println("  33. Prepare cancelSuperAdminTransfer data")
 	fmt.Println("\nEnterprise Wallet - Execute on Chain (TX):")
-	fmt.Println("  22. Execute createPaymentAccount")
-	fmt.Println("  23. Execute createCollectionAccount")
-	fmt.Println("  24. Execute approveTokenForPayment")
-	fmt.Println("  25. Execute transferETHToPayment")
-	fmt.Println("  26. Execute setCollectionTarget")
-	fmt.Println("  27. Execute collectFunds")
-	fmt.Println("  28. Execute updateMethodController")
-	fmt.Println("  29. Execute updatePaymentAccountController")
+	fmt.Println("  23. Execute createPaymentAccount")
+	fmt.Println("  24. Execute createCollectionAccount")
+	fmt.Println("  25. Execute createSafeAndPaymentAccount")
+	fmt.Println("  26. Execute createSafeAndCollectionAccount")
+	fmt.Println("  27. Execute approveTokenForPayment")
+	fmt.Println("  28. Execute transferETHToPayment")
+	fmt.Println("  29. Execute setCollectionTarget")
+	fmt.Println("  30. Execute collectFunds")
+	fmt.Println("  31. Execute updateMethodController")
+	fmt.Println("  32. Execute updatePaymentAccountController")
 	fmt.Println("\nSuperAdmin Transfer - Execute on Chain (TX):")
-	fmt.Println("  33. Execute proposeSuperAdminTransfer")
-	fmt.Println("  34. Execute confirmSuperAdminTransfer")
-	fmt.Println("  35. Execute cancelSuperAdminTransfer")
+	fmt.Println("  34. Execute proposeSuperAdminTransfer")
+	fmt.Println("  35. Execute confirmSuperAdminTransfer")
+	fmt.Println("  36. Execute cancelSuperAdminTransfer")
 	fmt.Println("\nBatch Operations - Prepare Data:")
 	fmt.Println("  39. Prepare updateMethodControllers (batch with different controllers)")
 	fmt.Println("  40. Prepare setMethodController (batch with same controller)")
@@ -193,18 +466,16 @@ func showMenu() {
 	fmt.Println("  43. Execute setMethodController")
 	fmt.Println("  44. Execute emergencyFreeze")
 	fmt.Println("\nQuery Functions (View):")
-	fmt.Println("  15. Query payment accounts")
-	fmt.Println("  16. Query collection accounts")
-	fmt.Println("  17. Query method config")
-	fmt.Println("  18. Check if address is payment account")
-	fmt.Println("  19. Check if address is collection account")
-	fmt.Println("  20. Get token allowance")
+	fmt.Println("  17. Query payment accounts")
+	fmt.Println("  18. Query collection accounts")
+	fmt.Println("  19. Query method config")
+	fmt.Println("  20. Check if address is payment account")
+	fmt.Println("  21. Check if address is collection account")
 	fmt.Println("\nSuperAdmin Transfer - Query:")
-	fmt.Println("  36. Query SuperAdmin transfer proposal")
-	fmt.Println("  37. Check if transfer is valid")
-	fmt.Println("  38. Get current transfer nonce")
+	fmt.Println("  37. Query SuperAdmin transfer proposal")
+	fmt.Println("  38. Check if transfer is valid")
 	fmt.Println("\nUtility:")
-	fmt.Println("  21. Run all read-only examples")
+	fmt.Println("  22. Run all read-only examples")
 	fmt.Println("  0.  Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -248,53 +519,53 @@ func runExample(ctx *ExampleContext, choice string) {
 	case "14":
 		examplePrepareUpdatePaymentAccountController(ctx)
 	case "15":
-		exampleQueryPaymentAccounts(ctx)
+		examplePrepareCreateSafeAndPaymentAccount(ctx)
 	case "16":
-		exampleQueryCollectionAccounts(ctx)
+		examplePrepareCreateSafeAndCollectionAccount(ctx)
 	case "17":
-		exampleQueryMethodConfig(ctx)
+		exampleQueryPaymentAccounts(ctx)
 	case "18":
-		exampleCheckIsPaymentAccount(ctx)
+		exampleQueryCollectionAccounts(ctx)
 	case "19":
-		exampleCheckIsCollectionAccount(ctx)
+		exampleQueryMethodConfig(ctx)
 	case "20":
-		exampleGetAllowance(ctx)
+		exampleCheckIsPaymentAccount(ctx)
 	case "21":
-		runAllReadOnlyExamples(ctx)
+		exampleCheckIsCollectionAccount(ctx)
 	case "22":
-		exampleExecuteCreatePaymentAccount(ctx)
+		runAllReadOnlyExamples(ctx)
 	case "23":
-		exampleExecuteCreateCollectionAccount(ctx)
+		exampleExecuteCreatePaymentAccount(ctx)
 	case "24":
-		exampleExecuteApproveToken(ctx)
+		exampleExecuteCreateCollectionAccount(ctx)
 	case "25":
-		exampleExecuteTransferETH(ctx)
+		exampleExecuteCreateSafeAndPaymentAccount(ctx)
 	case "26":
-		exampleExecuteSetCollectionTarget(ctx)
+		exampleExecuteCreateSafeAndCollectionAccount(ctx)
 	case "27":
-		exampleExecuteCollectFunds(ctx)
+		exampleExecuteApproveToken(ctx)
 	case "28":
-		exampleExecuteUpdateMethodController(ctx)
+		exampleExecuteTransferETH(ctx)
 	case "29":
-		exampleExecuteUpdatePaymentAccountController(ctx)
+		exampleExecuteSetCollectionTarget(ctx)
 	case "30":
-		examplePrepareProposeSuperAdminTransfer(ctx)
+		exampleExecuteCollectFunds(ctx)
 	case "31":
-		examplePrepareConfirmSuperAdminTransfer(ctx)
+		exampleExecuteUpdateMethodController(ctx)
 	case "32":
-		examplePrepareCancelSuperAdminTransfer(ctx)
+		exampleExecuteUpdatePaymentAccountController(ctx)
 	case "33":
-		exampleExecuteProposeSuperAdminTransfer(ctx)
+		examplePrepareProposeSuperAdminTransfer(ctx)
 	case "34":
-		exampleExecuteConfirmSuperAdminTransfer(ctx)
+		examplePrepareConfirmSuperAdminTransfer(ctx)
 	case "35":
-		exampleExecuteCancelSuperAdminTransfer(ctx)
+		examplePrepareCancelSuperAdminTransfer(ctx)
 	case "36":
-		exampleQuerySuperAdminTransfer(ctx)
+		exampleExecuteProposeSuperAdminTransfer(ctx)
 	case "37":
-		exampleCheckSuperAdminTransferValid(ctx)
+		exampleExecuteConfirmSuperAdminTransfer(ctx)
 	case "38":
-		exampleGetSuperAdminTransferNonce(ctx)
+		exampleExecuteCancelSuperAdminTransfer(ctx)
 	case "39":
 		examplePrepareUpdateMethodControllers(ctx)
 	case "40":
@@ -421,12 +692,12 @@ func exampleDeployWallet(ctx *ExampleContext) {
 	}
 
 	// Create init params
-	configs := make([]contracts.IEnterpriseWalletMethodConfig, len(methodSelectors))
+	configs := make([]utils.MethodConfig, len(methodSelectors))
 	for i := range methodSelectors {
-		configs[i] = contracts.IEnterpriseWalletMethodConfig{Controller: ctx.FromAddress}
+		configs[i] = utils.MethodConfig{Controller: ctx.FromAddress}
 	}
 
-	contractInitParams := contracts.IEnterpriseWalletFactoryInitParams{
+	contractInitParams := factoryInitParams{
 		Methods:    methodSelectors,
 		Configs:    configs,
 		SuperAdmin: ctx.FromAddress,
@@ -653,6 +924,114 @@ func examplePrepareUpdatePaymentAccountController(ctx *ExampleContext) {
 	fmt.Printf("Calldata: 0x%x\n", data)
 }
 
+func convertSafeSetupParams(params utils.SafeSetupParams) struct {
+	Owners          []common.Address
+	Threshold       *big.Int
+	To              common.Address
+	Data            []byte
+	FallbackHandler common.Address
+	PaymentToken    common.Address
+	Payment         *big.Int
+	PaymentReceiver common.Address
+	SaltNonce       *big.Int
+} {
+	return struct {
+		Owners          []common.Address
+		Threshold       *big.Int
+		To              common.Address
+		Data            []byte
+		FallbackHandler common.Address
+		PaymentToken    common.Address
+		Payment         *big.Int
+		PaymentReceiver common.Address
+		SaltNonce       *big.Int
+	}{
+		Owners:          params.Owners,
+		Threshold:       safeBigInt(params.Threshold),
+		To:              params.To,
+		Data:            params.Data,
+		FallbackHandler: params.FallbackHandler,
+		PaymentToken:    params.PaymentToken,
+		Payment:         safeBigInt(params.Payment),
+		PaymentReceiver: params.PaymentReceiver,
+		SaltNonce:       safeBigInt(params.SaltNonce),
+	}
+}
+
+func safeBigInt(value *big.Int) *big.Int {
+	if value == nil {
+		return big.NewInt(0)
+	}
+	return value
+}
+
+func examplePrepareCreateSafeAndPaymentAccount(ctx *ExampleContext) {
+	fmt.Println("=== Prepare createSafeAndPaymentAccount Data ===")
+
+	proxyFactory := common.HexToAddress(FactoryAddress)
+	safeSingleton := common.HexToAddress("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552") // Safe v1.4.1 mainnet copy (replace per network)
+
+	params := utils.SafeSetupParams{
+		Owners:          []common.Address{ctx.FromAddress},
+		Threshold:       big.NewInt(1),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: ctx.FromAddress,
+		SaltNonce:       big.NewInt(0),
+	}
+
+	data, err := utils.CreateSafeAndPaymentAccountData(proxyFactory, safeSingleton, params, "Treasury Payment Account")
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Proxy factory: %s\n", proxyFactory.Hex())
+	fmt.Printf("Safe singleton: %s\n", safeSingleton.Hex())
+	fmt.Printf("Owners: %s\n", ctx.FromAddress.Hex())
+	fmt.Printf("Threshold: %s\n", params.Threshold.String())
+	fmt.Printf("Payment receiver: %s\n", params.PaymentReceiver.Hex())
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
+func examplePrepareCreateSafeAndCollectionAccount(ctx *ExampleContext) {
+	fmt.Println("=== Prepare createSafeAndCollectionAccount Data ===")
+
+	proxyFactory := common.HexToAddress(FactoryAddress)
+	safeSingleton := common.HexToAddress("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552")
+	collectionTarget := ctx.FromAddress
+
+	params := utils.SafeSetupParams{
+		Owners:          []common.Address{ctx.FromAddress},
+		Threshold:       big.NewInt(1),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: ctx.FromAddress,
+		SaltNonce:       big.NewInt(0),
+	}
+
+	data, err := utils.CreateSafeAndCollectionAccountData(proxyFactory, safeSingleton, params, "Revenue Collection Account", collectionTarget)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("Proxy factory: %s\n", proxyFactory.Hex())
+	fmt.Printf("Safe singleton: %s\n", safeSingleton.Hex())
+	fmt.Printf("Owners: %s\n", ctx.FromAddress.Hex())
+	fmt.Printf("Threshold: %s\n", params.Threshold.String())
+	fmt.Printf("Collection target: %s\n", collectionTarget.Hex())
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Calldata: 0x%x\n", data)
+}
+
 // ============= View Functions Examples =============
 
 func exampleQueryPaymentAccounts(ctx *ExampleContext) {
@@ -666,7 +1045,7 @@ func exampleQueryPaymentAccounts(ctx *ExampleContext) {
 	}
 
 	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -697,7 +1076,7 @@ func exampleQueryCollectionAccounts(ctx *ExampleContext) {
 	}
 
 	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -728,7 +1107,7 @@ func exampleQueryMethodConfig(ctx *ExampleContext) {
 	}
 
 	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -765,7 +1144,7 @@ func exampleCheckIsPaymentAccount(ctx *ExampleContext) {
 	walletAddr := common.HexToAddress(walletAddrStr)
 	accountAddr := common.HexToAddress(accountAddrStr)
 
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -800,7 +1179,7 @@ func exampleCheckIsCollectionAccount(ctx *ExampleContext) {
 	walletAddr := common.HexToAddress(walletAddrStr)
 	accountAddr := common.HexToAddress(accountAddrStr)
 
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -813,42 +1192,6 @@ func exampleCheckIsCollectionAccount(ctx *ExampleContext) {
 	}
 
 	fmt.Printf("Address %s is collection account: %v\n", accountAddr.Hex(), isCollectionAccount)
-}
-
-func exampleGetAllowance(ctx *ExampleContext) {
-	fmt.Println("=== Get Token Allowance ===")
-	fmt.Print("Enter enterprise wallet address: ")
-	walletAddrStr := getUserInput()
-
-	if walletAddrStr == "" {
-		fmt.Println("Using example address...")
-		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
-	}
-
-	walletAddr := common.HexToAddress(walletAddrStr)
-	tokenAddr := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48") // USDC
-	paymentAccount := common.HexToAddress("0x1111111111111111111111111111111111111111")
-
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
-	if err != nil {
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	allowance, err := wallet.GetAllowance(&bind.CallOpts{}, tokenAddr, paymentAccount)
-	if err != nil {
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	fmt.Printf("Token: %s (USDC)\n", tokenAddr.Hex())
-	fmt.Printf("Payment account: %s\n", paymentAccount.Hex())
-	fmt.Printf("Allowance: %s (raw)\n", allowance.String())
-
-	// Convert to human-readable USDC (6 decimals)
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
-	readable := new(big.Int).Div(allowance, divisor)
-	fmt.Printf("Allowance: %s USDC\n", readable.String())
 }
 
 // ============= Utility Functions =============
@@ -872,6 +1215,8 @@ func runAllReadOnlyExamples(ctx *ExampleContext) {
 		{"Prepare Collect Funds", examplePrepareCollectFunds},
 		{"Prepare Update Method Controller", examplePrepareUpdateMethodController},
 		{"Prepare Update Payment Account Controller", examplePrepareUpdatePaymentAccountController},
+		{"Prepare createSafeAndPaymentAccount", examplePrepareCreateSafeAndPaymentAccount},
+		{"Prepare createSafeAndCollectionAccount", examplePrepareCreateSafeAndCollectionAccount},
 	}
 
 	for i, ex := range examples {
@@ -881,6 +1226,35 @@ func runAllReadOnlyExamples(ctx *ExampleContext) {
 	}
 
 	fmt.Println("\n=== All Read-Only Examples Completed ===")
+}
+
+func promptWithDefault(label, def string) string {
+	if def == "" {
+		fmt.Printf("%s: ", label)
+	} else {
+		fmt.Printf("%s [%s]: ", label, def)
+	}
+	input := getUserInput()
+	if input == "" {
+		return def
+	}
+	return input
+}
+
+func parseAddressList(value string) ([]common.Address, error) {
+	parts := strings.Split(value, ",")
+	addresses := make([]common.Address, 0, len(parts))
+	for _, raw := range parts {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			continue
+		}
+		if !common.IsHexAddress(trimmed) {
+			return nil, fmt.Errorf("invalid address: %s", trimmed)
+		}
+		addresses = append(addresses, common.HexToAddress(trimmed))
+	}
+	return addresses, nil
 }
 
 // ============= Execute on Chain Functions =============
@@ -955,7 +1329,7 @@ func exampleExecuteCreatePaymentAccount(ctx *ExampleContext) {
 	}
 
 	// Connect to wallet contract
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1033,7 +1407,7 @@ func exampleExecuteCreateCollectionAccount(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1058,6 +1432,180 @@ func exampleExecuteCreateCollectionAccount(ctx *ExampleContext) {
 		fmt.Printf("✓ Collection account created successfully!\n")
 		fmt.Printf("  Block: %d\n", receipt.BlockNumber.Uint64())
 		fmt.Printf("  Gas used: %d\n", receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteCreateSafeAndPaymentAccount(ctx *ExampleContext) {
+	fmt.Println("=== Execute createSafeAndPaymentAccount ===")
+	fmt.Println("WARNING: This will send an actual transaction!\n")
+
+	walletAddrStr := promptWithDefault("Enterprise wallet address", "")
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	proxyFactoryStr := promptWithDefault("Proxy factory address", FactoryAddress)
+	safeSingletonStr := promptWithDefault("Safe singleton address", "0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552")
+	ownersInput := promptWithDefault("Safe owners (comma separated)", ctx.FromAddress.Hex())
+	owners, err := parseAddressList(ownersInput)
+	if err != nil || len(owners) == 0 {
+		fmt.Println("Invalid owners list. Cancelled.")
+		return
+	}
+
+	thresholdInput := promptWithDefault("Safe threshold", "1")
+	threshold, err := strconv.Atoi(thresholdInput)
+	if err != nil || threshold <= 0 || threshold > len(owners) {
+		fmt.Println("Invalid threshold. Cancelled.")
+		return
+	}
+
+	name := promptWithDefault("Payment account name", "Treasury Payment Account")
+	saltInput := promptWithDefault("Salt nonce (uint, default 0)", "0")
+	saltNonce := new(big.Int)
+	saltNonce, ok := saltNonce.SetString(saltInput, 10)
+	if !ok {
+		fmt.Println("Invalid salt nonce. Cancelled.")
+		return
+	}
+
+	params := utils.SafeSetupParams{
+		Owners:          owners,
+		Threshold:       big.NewInt(int64(threshold)),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: ctx.FromAddress,
+		SaltNonce:       saltNonce,
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.CreateSafeAndPaymentAccount(
+		auth,
+		common.HexToAddress(proxyFactoryStr),
+		common.HexToAddress(safeSingletonStr),
+		params,
+		name,
+	)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ createSafeAndPaymentAccount executed. Block %d Gas %d\n", receipt.BlockNumber.Uint64(), receipt.GasUsed)
+	} else {
+		fmt.Println("✗ Transaction failed")
+	}
+}
+
+func exampleExecuteCreateSafeAndCollectionAccount(ctx *ExampleContext) {
+	fmt.Println("=== Execute createSafeAndCollectionAccount ===")
+	fmt.Println("WARNING: This will send an actual transaction!\n")
+
+	walletAddrStr := promptWithDefault("Enterprise wallet address", "")
+	if walletAddrStr == "" {
+		fmt.Println("No wallet address provided. Cancelled.")
+		return
+	}
+
+	proxyFactoryStr := promptWithDefault("Proxy factory address", FactoryAddress)
+	safeSingletonStr := promptWithDefault("Safe singleton address", "0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552")
+	collectionTargetStr := promptWithDefault("Collection target (address)", ctx.FromAddress.Hex())
+	ownersInput := promptWithDefault("Safe owners (comma separated)", ctx.FromAddress.Hex())
+	owners, err := parseAddressList(ownersInput)
+	if err != nil || len(owners) == 0 {
+		fmt.Println("Invalid owners list. Cancelled.")
+		return
+	}
+
+	thresholdInput := promptWithDefault("Safe threshold", "1")
+	threshold, err := strconv.Atoi(thresholdInput)
+	if err != nil || threshold <= 0 || threshold > len(owners) {
+		fmt.Println("Invalid threshold. Cancelled.")
+		return
+	}
+
+	name := promptWithDefault("Collection account name", "Revenue Collection Account")
+	saltInput := promptWithDefault("Salt nonce (uint, default 0)", "0")
+	saltNonce := new(big.Int)
+	saltNonce, ok := saltNonce.SetString(saltInput, 10)
+	if !ok {
+		fmt.Println("Invalid salt nonce. Cancelled.")
+		return
+	}
+
+	params := utils.SafeSetupParams{
+		Owners:          owners,
+		Threshold:       big.NewInt(int64(threshold)),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: ctx.FromAddress,
+		SaltNonce:       saltNonce,
+	}
+
+	auth, err := getFreshAuth(ctx)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	tx, err := wallet.CreateSafeAndCollectionAccount(
+		auth,
+		common.HexToAddress(proxyFactoryStr),
+		common.HexToAddress(safeSingletonStr),
+		params,
+		name,
+		common.HexToAddress(collectionTargetStr),
+	)
+	if err != nil {
+		log.Printf("Error sending transaction: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	fmt.Println("Waiting for confirmation...")
+	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
+	if err != nil {
+		log.Printf("Error waiting for transaction: %v", err)
+		return
+	}
+
+	if receipt.Status == 1 {
+		fmt.Printf("✓ createSafeAndCollectionAccount executed. Block %d Gas %d\n", receipt.BlockNumber.Uint64(), receipt.GasUsed)
 	} else {
 		fmt.Println("✗ Transaction failed")
 	}
@@ -1116,7 +1664,7 @@ func exampleExecuteApproveToken(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1191,7 +1739,7 @@ func exampleExecuteTransferETH(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1265,7 +1813,7 @@ func exampleExecuteSetCollectionTarget(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1341,7 +1889,7 @@ func exampleExecuteCollectFunds(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1424,7 +1972,7 @@ func exampleExecuteUpdateMethodController(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1497,7 +2045,7 @@ func exampleExecuteUpdatePaymentAccountController(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1548,30 +2096,22 @@ func examplePrepareProposeSuperAdminTransfer(ctx *ExampleContext) {
 
 func examplePrepareConfirmSuperAdminTransfer(ctx *ExampleContext) {
 	fmt.Println("=== Prepare Confirm SuperAdmin Transfer ===")
-	proposalId := big.NewInt(1)
-
-	data, err := utils.ConfirmSuperAdminTransferData(proposalId)
+	data, err := utils.ConfirmSuperAdminTransferData()
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
-
-	fmt.Printf("Proposal ID: %s\n", proposalId.String())
 	fmt.Printf("Calldata length: %d bytes\n", len(data))
 	fmt.Printf("Calldata: 0x%x\n", data)
 }
 
 func examplePrepareCancelSuperAdminTransfer(ctx *ExampleContext) {
 	fmt.Println("=== Prepare Cancel SuperAdmin Transfer ===")
-	proposalId := big.NewInt(1)
-
-	data, err := utils.CancelSuperAdminTransferData(proposalId)
+	data, err := utils.CancelSuperAdminTransferData()
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
-
-	fmt.Printf("Proposal ID: %s\n", proposalId.String())
 	fmt.Printf("Calldata length: %d bytes\n", len(data))
 	fmt.Printf("Calldata: 0x%x\n", data)
 }
@@ -1625,7 +2165,7 @@ func exampleExecuteProposeSuperAdminTransfer(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -1667,19 +2207,8 @@ func exampleExecuteConfirmSuperAdminTransfer(ctx *ExampleContext) {
 		return
 	}
 
-	fmt.Print("Enter proposal ID: ")
-	proposalIdStr := getUserInput()
-	if proposalIdStr == "" {
-		fmt.Println("No proposal ID provided. Cancelled.")
-		return
-	}
-
-	proposalId := new(big.Int)
-	proposalId.SetString(proposalIdStr, 10)
-
 	fmt.Printf("\nReview transaction:\n")
 	fmt.Printf("  Wallet: %s\n", walletAddrStr)
-	fmt.Printf("  Proposal ID: %s\n", proposalId.String())
 	fmt.Print("\nType 'yes' to confirm: ")
 
 	confirmation := getUserInput()
@@ -1694,13 +2223,13 @@ func exampleExecuteConfirmSuperAdminTransfer(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	tx, err := wallet.ConfirmSuperAdminTransfer(auth, proposalId)
+	tx, err := wallet.ConfirmSuperAdminTransfer(auth)
 	if err != nil {
 		log.Printf("Error sending transaction: %v", err)
 		return
@@ -1735,19 +2264,8 @@ func exampleExecuteCancelSuperAdminTransfer(ctx *ExampleContext) {
 		return
 	}
 
-	fmt.Print("Enter proposal ID: ")
-	proposalIdStr := getUserInput()
-	if proposalIdStr == "" {
-		fmt.Println("No proposal ID provided. Cancelled.")
-		return
-	}
-
-	proposalId := new(big.Int)
-	proposalId.SetString(proposalIdStr, 10)
-
 	fmt.Printf("\nReview transaction:\n")
 	fmt.Printf("  Wallet: %s\n", walletAddrStr)
-	fmt.Printf("  Proposal ID: %s\n", proposalId.String())
 	fmt.Print("\nType 'yes' to confirm: ")
 
 	confirmation := getUserInput()
@@ -1762,13 +2280,13 @@ func exampleExecuteCancelSuperAdminTransfer(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	tx, err := wallet.CancelSuperAdminTransfer(auth, proposalId)
+	tx, err := wallet.CancelSuperAdminTransfer(auth)
 	if err != nil {
 		log.Printf("Error sending transaction: %v", err)
 		return
@@ -1804,29 +2322,19 @@ func exampleQuerySuperAdminTransfer(ctx *ExampleContext) {
 		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
 	}
 
-	fmt.Print("Enter proposal ID: ")
-	proposalIdStr := getUserInput()
-	if proposalIdStr == "" {
-		proposalIdStr = "1"
-	}
-
-	proposalId := new(big.Int)
-	proposalId.SetString(proposalIdStr, 10)
-
 	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	transfer, err := wallet.GetSuperAdminTransfer(&bind.CallOpts{}, proposalId)
+	transfer, err := wallet.GetSuperAdminTransfer(&bind.CallOpts{})
 	if err != nil {
 		log.Printf("Error querying transfer: %v", err)
 		return
 	}
 
-	fmt.Printf("\nProposal ID: %s\n", proposalId.String())
 	fmt.Printf("Current SuperAdmin: %s\n", transfer.CurrentSuperAdmin.Hex())
 	fmt.Printf("Proposed SuperAdmin: %s\n", transfer.ProposedSuperAdmin.Hex())
 	fmt.Printf("Proposed At: %s\n", transfer.ProposedAt.String())
@@ -1844,55 +2352,20 @@ func exampleCheckSuperAdminTransferValid(ctx *ExampleContext) {
 		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
 	}
 
-	fmt.Print("Enter proposal ID: ")
-	proposalIdStr := getUserInput()
-	if proposalIdStr == "" {
-		proposalIdStr = "1"
-	}
-
-	proposalId := new(big.Int)
-	proposalId.SetString(proposalIdStr, 10)
-
 	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(walletAddr, ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	isValid, err := wallet.IsValidSuperAdminTransfer(&bind.CallOpts{}, proposalId)
+	isValid, err := wallet.IsValidSuperAdminTransfer(&bind.CallOpts{})
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
 	}
 
-	fmt.Printf("Proposal ID %s is valid: %v\n", proposalId.String(), isValid)
-}
-
-func exampleGetSuperAdminTransferNonce(ctx *ExampleContext) {
-	fmt.Println("=== Get Current SuperAdmin Transfer Nonce ===")
-	fmt.Print("Enter enterprise wallet address: ")
-	walletAddrStr := getUserInput()
-
-	if walletAddrStr == "" {
-		fmt.Println("Using example address...")
-		walletAddrStr = "0xCD6c4962346F5680C765127ED29A8F5cc53a6B66"
-	}
-
-	walletAddr := common.HexToAddress(walletAddrStr)
-	wallet, err := contracts.NewEnterpriseWallet(walletAddr, ctx.Client)
-	if err != nil {
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	nonce, err := wallet.GetCurrentSuperAdminTransferNonce(&bind.CallOpts{})
-	if err != nil {
-		log.Printf("Error: %v", err)
-		return
-	}
-
-	fmt.Printf("Current SuperAdmin Transfer Nonce: %s\n", nonce.String())
+	fmt.Printf("Current proposal valid: %v\n", isValid)
 }
 
 // ============= Batch Operations Examples - Prepare Data =============
@@ -2050,7 +2523,7 @@ func exampleExecuteUpdateMethodControllers(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -2154,7 +2627,7 @@ func exampleExecuteSetMethodController(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return
@@ -2226,7 +2699,7 @@ func exampleExecuteEmergencyFreeze(ctx *ExampleContext) {
 		return
 	}
 
-	wallet, err := contracts.NewEnterpriseWallet(common.HexToAddress(walletAddrStr), ctx.Client)
+	wallet, err := NewEnterpriseWalletContract(common.HexToAddress(walletAddrStr), ctx.Client)
 	if err != nil {
 		log.Printf("Error: %v", err)
 		return

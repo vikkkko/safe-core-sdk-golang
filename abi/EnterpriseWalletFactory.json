@@ -44,7 +44,7 @@
           {
             "name": "configs",
             "type": "tuple[]",
-            "internalType": "struct IEnterpriseWallet.MethodConfig[]",
+            "internalType": "struct IEnterpriseWalletTypes.MethodConfig[]",
             "components": [
               {
                 "name": "controller",
