@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -148,6 +149,7 @@ func main() {
 		log.Fatalf("获取交易哈希失败: %v", err)
 	}
 	txHash := txHashBytes[:]
+	fmt.Printf("    交易哈希: 0x%s\n", hex.EncodeToString(txHash))
 	fmt.Printf(" ✅\n")
 
 	// 第五步：签名交易
@@ -217,6 +219,61 @@ func main() {
 			}
 			fmt.Printf("🔗 SAFE Transaction Hash: %s\n", displayHash)
 			fmt.Printf("📊 需要确认: %d/%d\n", len(response.Confirmations), safeInfo.Threshold)
+
+			// 第七步：从服务器获取交易详情查看签名情况
+			fmt.Printf("\n📋 获取交易签名详情...")
+			txDetails, err := apiClient.GetMultisigTransaction(ctx, displayHash)
+			if err != nil {
+				fmt.Printf(" ❌\n   获取失败: %v\n", err)
+			} else {
+				fmt.Printf(" ✅\n")
+				fmt.Printf("\n=== 交易签名状态 ===\n")
+				fmt.Printf("Safe地址: %s\n", txDetails.Safe)
+				fmt.Printf("交易哈希: %s\n", txDetails.SafeTxHash)
+				fmt.Printf("随机数: %d\n", txDetails.Nonce)
+				fmt.Printf("需要签名数: %d\n", txDetails.ConfirmationsRequired)
+				fmt.Printf("当前签名数: %d\n", len(txDetails.Confirmations))
+				fmt.Printf("已执行: %v\n", txDetails.IsExecuted)
+
+				if len(txDetails.Confirmations) > 0 {
+					fmt.Printf("\n已签名地址:\n")
+					for i, confirmation := range txDetails.Confirmations {
+						fmt.Printf("  %d. %s\n", i+1, confirmation.Owner)
+						fmt.Printf("     签名: %s...\n", confirmation.Signature[:20])
+						fmt.Printf("     时间: %s\n", confirmation.SubmissionDate.Format("2006-01-02 15:04:05"))
+					}
+				}
+
+				// 检查还需要哪些所有者签名
+				missingSigners := []string{}
+				for _, owner := range safeInfo.Owners {
+					isSigned := false
+					for _, confirmation := range txDetails.Confirmations {
+						if strings.EqualFold(confirmation.Owner, owner) {
+							isSigned = true
+							break
+						}
+					}
+					if !isSigned {
+						missingSigners = append(missingSigners, owner)
+					}
+				}
+
+				if len(missingSigners) > 0 {
+					fmt.Printf("\n待签名地址 (%d):\n", len(missingSigners))
+					for i, signer := range missingSigners {
+						fmt.Printf("  %d. %s\n", i+1, signer)
+					}
+				}
+
+				// 判断是否可以执行
+				if len(txDetails.Confirmations) >= txDetails.ConfirmationsRequired {
+					fmt.Printf("\n✅ 交易已收集足够签名，可以执行!\n")
+				} else {
+					need := txDetails.ConfirmationsRequired - len(txDetails.Confirmations)
+					fmt.Printf("\n⏳ 还需要 %d 个签名才能执行\n", need)
+				}
+			}
 		}
 	} else {
 		fmt.Printf(" ⏭️  (跳过提交，签名者非所有者)\n")
