@@ -6,6 +6,7 @@
 
 - ✅ **Safe 钱包创建** - CREATE2 地址预测、多签配置、工厂部署
 - ✅ **交易管理** - EIP-712 签名、交易哈希计算、多签收集
+- ✅ **高级方法** - ConfirmTransaction 一键确认和执行多签交易
 - ✅ **API 集成** - Safe Transaction Service 完整支持
 - ✅ **ERC20 操作** - 基于 ABI 的代币转账、授权、查询
 - ✅ **企业钱包集成** - Payment/Collection账户管理、方法级权限控制
@@ -89,6 +90,7 @@ func main() {
         SafeAddress: "0x447d4227d88D6A7fB1486879be24Be00418A5fB7",
         RpcURL:      "https://sepolia.infura.io/v3/YOUR_KEY",
         ChainID:     11155111,
+        PrivateKey:  "0x...", // 签名者私钥
     })
 
     // 初始化 API 客户端
@@ -100,6 +102,54 @@ func main() {
     // 获取 Safe 信息
     ctx := context.Background()
     safeInfo, _ := apiClient.GetSafeInfo(ctx, "0x447d4227d88D6A7fB1486879be24Be00418A5fB7")
+}
+```
+
+### 5. 确认多签交易（高级方法）
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "github.com/vikkkko/safe-core-sdk-golang/protocol"
+    "github.com/vikkkko/safe-core-sdk-golang/api"
+)
+
+func main() {
+    // 初始化 Safe 客户端
+    safeClient, _ := protocol.NewSafe(protocol.SafeConfig{
+        SafeAddress: "0x447d4227d88D6A7fB1486879be24Be00418A5fB7",
+        RpcURL:      "https://sepolia.infura.io/v3/YOUR_KEY",
+        ChainID:     11155111,
+        PrivateKey:  "0x...", // 签名者私钥
+    })
+
+    // 初始化 API 客户端
+    apiClient, _ := api.NewSafeApiKit(api.SafeApiKitConfig{
+        ChainID: 11155111,
+        ApiKey:  "YOUR_API_KEY",
+    })
+
+    // 确认并执行交易（一行代码完成所有操作）
+    result, _ := safeClient.ConfirmTransaction(context.Background(),
+        protocol.ConfirmTransactionConfig{
+            SafeTxHash:  "0x1234...", // Safe 交易哈希
+            APIClient:   apiClient,
+            AutoExecute: true, // 达到阈值时自动执行
+        })
+
+    // 处理结果
+    fmt.Printf("当前签名数: %d/%d\n", result.CurrentSignatures, result.RequiredSignatures)
+
+    if result.SignatureSubmitted {
+        fmt.Println("✅ 成功提交签名")
+    }
+
+    if result.TransactionExecuted {
+        fmt.Printf("🎉 交易已执行: %s\n", result.ExecutionResult.Hash)
+    }
 }
 ```
 
@@ -214,6 +264,7 @@ RUN_INTEGRATION_TESTS=true go test ./tests/integration
 ## 📖 文档
 
 - **[多签钱包工作流程](./MULTISIG_WORKFLOW.md)** - 完整的创建和管理指南
+- **[SDK ConfirmTransaction 使用指南](./SDK_CONFIRM_TRANSACTION_EXAMPLE.md)** - 高级多签确认方法详解
 - **[企业钱包集成指南](./ENTERPRISE_WALLET.md)** - 企业钱包合约集成文档
 - **[Utils 工具包文档](./protocol/utils/README.md)** - Safe 部署工具使用说明
 - **[贡献指南](./CONTRIBUTING.md)** - 如何参与项目开发

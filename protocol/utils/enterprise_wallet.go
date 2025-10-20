@@ -17,6 +17,9 @@ var EnterpriseWalletFactoryABI = string(projectabi.EnterpriseWalletFactory)
 // EnterpriseWalletABI contains the ABI for the EnterpriseWallet contract.
 var EnterpriseWalletABI = string(projectabi.EnterpriseWallet)
 
+// PaymentAccountABI contains the ABI for the PaymentAccount contract.
+var PaymentAccountABI = `[{"type":"constructor","inputs":[{"name":"_enterpriseWallet","type":"address","internalType":"address"},{"name":"_name","type":"string","internalType":"string"}],"stateMutability":"nonpayable"},{"type":"function","name":"ENTERPRISE_WALLET","inputs":[],"outputs":[{"name":"","type":"address","internalType":"address"}],"stateMutability":"view"},{"type":"function","name":"emergencyFreeze","inputs":[{"name":"freeze","type":"bool","internalType":"bool"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"isFrozen","inputs":[],"outputs":[{"name":"","type":"bool","internalType":"bool"}],"stateMutability":"view"},{"type":"function","name":"name","inputs":[],"outputs":[{"name":"","type":"string","internalType":"string"}],"stateMutability":"view"},{"type":"function","name":"transfer","inputs":[{"name":"token","type":"address","internalType":"address"},{"name":"from","type":"address","internalType":"address"},{"name":"to","type":"address","internalType":"address"},{"name":"amount","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"event","name":"EmergencyFrozen","inputs":[{"name":"account","type":"address","indexed":true,"internalType":"address"},{"name":"frozen","type":"bool","indexed":false,"internalType":"bool"}],"anonymous":false},{"type":"event","name":"PaymentExecuted","inputs":[{"name":"token","type":"address","indexed":true,"internalType":"address"},{"name":"from","type":"address","indexed":true,"internalType":"address"},{"name":"to","type":"address","indexed":true,"internalType":"address"},{"name":"amount","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false},{"type":"error","name":"AlreadyFrozen","inputs":[]},{"type":"error","name":"InsufficientAllowance","inputs":[]},{"type":"error","name":"InsufficientBalance","inputs":[]},{"type":"error","name":"InvalidAmount","inputs":[]},{"type":"error","name":"InvalidFromAddress","inputs":[]},{"type":"error","name":"NotFrozen","inputs":[]},{"type":"error","name":"ReentrancyGuardReentrantCall","inputs":[]},{"type":"error","name":"TransferFailed","inputs":[]},{"type":"error","name":"Unauthorized","inputs":[]}]`
+
 // MethodConfig represents the configuration for a method in the enterprise wallet
 type MethodConfig struct {
 	Controller common.Address
@@ -417,4 +420,24 @@ func safeBigIntOrZero(value *big.Int) *big.Int {
 		return big.NewInt(0)
 	}
 	return value
+}
+
+// PaymentAccountTransferData creates the call data for PaymentAccount.transfer()
+// Parameters:
+//   - token: Token address (address(0) for ETH)
+//   - from: Source address (must be the PaymentAccount itself for ETH)
+//   - to: Recipient address
+//   - amount: Amount to transfer
+func PaymentAccountTransferData(token common.Address, from common.Address, to common.Address, amount *big.Int) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(PaymentAccountABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PaymentAccount ABI: %w", err)
+	}
+
+	data, err := parsedABI.Pack("transfer", token, from, to, amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode transfer call: %w", err)
+	}
+
+	return data, nil
 }
