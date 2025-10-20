@@ -7,7 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
 )
 
 // SafeContract represents a Safe smart contract
@@ -154,6 +156,7 @@ func (sc *SafeContract) GetFallbackHandler(ctx context.Context) (common.Address,
 // ExecTransaction executes a Safe transaction
 func (sc *SafeContract) ExecTransaction(
 	ctx context.Context,
+	opts *bind.TransactOpts,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -164,14 +167,39 @@ func (sc *SafeContract) ExecTransaction(
 	gasToken common.Address,
 	refundReceiver common.Address,
 	signatures []byte,
-) (common.Hash, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would:
-	// 1. Prepare the transaction data
-	// 2. Send the transaction to the blockchain
-	// 3. Return the transaction hash
+) (*gethtypes.Transaction, error) {
+	if opts == nil {
+		return nil, fmt.Errorf("transaction options must not be nil")
+	}
 
-	return common.Hash{}, fmt.Errorf("execTransaction not implemented")
+	copyOpts := *opts
+	if copyOpts.Context == nil {
+		copyOpts.Context = ctx
+	}
+
+	safeBinding, err := utils.NewSafeContract(sc.address, sc.client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Safe contract binding: %w", err)
+	}
+
+	tx, err := safeBinding.ExecTransaction(
+		&copyOpts,
+		to,
+		value,
+		data,
+		operation,
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		gasToken,
+		refundReceiver,
+		signatures,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // GetTransactionHash calculates the transaction hash for signing

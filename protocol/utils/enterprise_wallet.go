@@ -197,7 +197,6 @@ var (
 	TransferETHToPaymentSelector           = GetMethodSelector("transferETHToPayment(address,uint256)")
 	CollectFundsSelector                   = GetMethodSelector("collectFunds(address,address)")
 	CreateSafeAndPaymentAccountSelector    = GetMethodSelector("createSafeAndPaymentAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string)")
-	CreateSafeAndCollectionAccountSelector = GetMethodSelector("createSafeAndCollectionAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string,address)")
 
 	// SuperAdmin transfer selectors
 	ProposeSuperAdminTransferSelector = GetMethodSelector("proposeSuperAdminTransfer(address,uint256)")

@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/managers"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
@@ -357,19 +360,86 @@ func (s *Safe) SignTransaction(ctx context.Context, transaction *types.SafeTrans
 
 // ExecuteTransaction executes a Safe transaction
 func (s *Safe) ExecuteTransaction(ctx context.Context, transaction *types.SafeTransaction) (*types.TransactionResult, error) {
-	// This is a placeholder implementation
-	// In a real implementation, this would:
-	// 1. Validate the transaction and signatures
-	// 2. Submit the transaction to the blockchain
-	// 3. Return the transaction result
+	if transaction == nil {
+		return nil, fmt.Errorf("transaction cannot be nil")
+	}
 
-	return &types.TransactionResult{
-		BaseTransactionResult: types.BaseTransactionResult{
-			Hash: "0x0000000000000000000000000000000000000000000000000000000000000000", // Placeholder
-		},
-		TransactionResponse: nil,
-		Options:             nil,
-	}, nil
+	if len(transaction.Signatures) == 0 {
+		return nil, fmt.Errorf("transaction has no signatures")
+	}
+
+	if s.config.PrivateKey == "" {
+		return nil, fmt.Errorf("private key is required to execute the transaction")
+	}
+
+	// Ensure we have enough signatures
+	thresholdUint, err := s.GetThreshold(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Safe threshold: %w", err)
+	}
+
+	if len(transaction.Signatures) < int(thresholdUint) {
+		return nil, fmt.Errorf("not enough signatures: have %d, need %d", len(transaction.Signatures), thresholdUint)
+	}
+
+	signatureBytes, err := transaction.EncodedSignaturesBytes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode signatures: %w", err)
+	}
+
+	privateKeyHex := strings.TrimPrefix(s.config.PrivateKey, "0x")
+	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	chainID := big.NewInt(s.config.ChainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+	auth.Context = ctx
+
+	safeContract, err := s.contractManager.GetSafeContract(common.HexToAddress(s.config.SafeAddress))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe contract: %w", err)
+	}
+
+	data := transaction.Data
+	to := common.HexToAddress(data.To)
+	value := parseBigIntString(data.Value)
+	dataBytes := common.FromHex(data.Data)
+	operation := uint8(data.Operation)
+	safeTxGas := parseBigIntString(data.SafeTxGas)
+	baseGas := parseBigIntString(data.BaseGas)
+	gasPrice := parseBigIntString(data.GasPrice)
+	gasToken := parseAddressOrZero(data.GasToken)
+	refundReceiver := parseAddressOrZero(data.RefundReceiver)
+
+	tx, err := safeContract.ExecTransaction(
+		ctx,
+		auth,
+		to,
+		value,
+		dataBytes,
+		operation,
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		gasToken,
+		refundReceiver,
+		signatureBytes,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute Safe transaction: %w", err)
+	}
+
+	result := &types.TransactionResult{
+		BaseTransactionResult: types.BaseTransactionResult{Hash: tx.Hash().Hex()},
+		TransactionResponse:   tx,
+	}
+
+	return result, nil
 }
 
 // PredictSafeAddress predicts the address of a Safe before deployment
@@ -380,6 +450,29 @@ func PredictSafeAddress(config types.SafeDeploymentConfig, chainID *big.Int) (st
 	// 2. Return the predicted address
 
 	return utils.PredictSafeAddress(config, chainID)
+}
+
+func parseBigIntString(value string) *big.Int {
+	if value == "" {
+		return big.NewInt(0)
+	}
+	if bi, ok := new(big.Int).SetString(value, 10); ok {
+		return bi
+	}
+	return big.NewInt(0)
+}
+
+func parseAddressOrZero(value string) common.Address {
+	if value == "" {
+		return common.Address{}
+	}
+	if !strings.HasPrefix(value, "0x") {
+		value = "0x" + value
+	}
+	if !common.IsHexAddress(value) {
+		return common.Address{}
+	}
+	return common.HexToAddress(value)
 }
 
 // DeploySafe deploys a new Safe with the given configuration

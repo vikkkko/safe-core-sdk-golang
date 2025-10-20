@@ -1,7 +1,11 @@
 package types
 
 import (
+	"encoding/hex"
+	"fmt"
 	"math/big"
+	"sort"
+	"strings"
 )
 
 // SafeVersion represents the supported Safe contract versions
@@ -25,14 +29,14 @@ const (
 
 // SafeSetupConfig contains the configuration for setting up a new Safe
 type SafeSetupConfig struct {
-	Owners           []string `json:"owners"`           // List of Safe owners
-	Threshold        uint     `json:"threshold"`        // Number of required confirmations
-	To               string   `json:"to,omitempty"`     // Optional contract to call during setup
-	Data             string   `json:"data,omitempty"`   // Optional data payload for setup call
-	FallbackHandler  string   `json:"fallbackHandler,omitempty"`  // Optional fallback handler
-	PaymentToken     string   `json:"paymentToken,omitempty"`     // Optional payment token
-	Payment          string   `json:"payment,omitempty"`          // Optional payment amount
-	PaymentReceiver  string   `json:"paymentReceiver,omitempty"`  // Optional payment receiver
+	Owners          []string `json:"owners"`                    // List of Safe owners
+	Threshold       uint     `json:"threshold"`                 // Number of required confirmations
+	To              string   `json:"to,omitempty"`              // Optional contract to call during setup
+	Data            string   `json:"data,omitempty"`            // Optional data payload for setup call
+	FallbackHandler string   `json:"fallbackHandler,omitempty"` // Optional fallback handler
+	PaymentToken    string   `json:"paymentToken,omitempty"`    // Optional payment token
+	Payment         string   `json:"payment,omitempty"`         // Optional payment amount
+	PaymentReceiver string   `json:"paymentReceiver,omitempty"` // Optional payment receiver
 }
 
 // MetaTransactionData represents the essential data for a transaction
@@ -119,11 +123,58 @@ func (st *SafeTransaction) AddSignature(signature SafeSignature) {
 	st.Signatures[signature.Signer] = signature
 }
 
-// EncodedSignatures returns the encoded signatures for the transaction
+// EncodedSignatures returns the encoded signatures for the transaction in hex format (0x...)
 func (st *SafeTransaction) EncodedSignatures() string {
-	// Implementation would encode all signatures according to Safe's format
-	// This is a placeholder - actual implementation would depend on the signing format
-	return ""
+	bytes, err := st.EncodedSignaturesBytes()
+	if err != nil {
+		return ""
+	}
+	return "0x" + hex.EncodeToString(bytes)
+}
+
+// EncodedSignaturesBytes returns the raw signature bytes sorted by signer address.
+func (st *SafeTransaction) EncodedSignaturesBytes() ([]byte, error) {
+	if len(st.Signatures) == 0 {
+		return nil, fmt.Errorf("no signatures present")
+	}
+
+	type signatureEntry struct {
+		signer string
+		sig    SafeSignature
+	}
+
+	entries := make([]signatureEntry, 0, len(st.Signatures))
+	for signer, sig := range st.Signatures {
+		s := signer
+		if s == "" {
+			s = sig.Signer
+		}
+		s = strings.ToLower(s)
+		entries = append(entries, signatureEntry{signer: s, sig: sig})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].signer < entries[j].signer
+	})
+
+	result := make([]byte, 0, len(entries)*65)
+	for _, entry := range entries {
+		if entry.sig.IsContractSignature {
+			return nil, fmt.Errorf("contract signatures are not supported in this encoding helper")
+		}
+
+		data := strings.TrimPrefix(entry.sig.Data, "0x")
+		sigBytes, err := hex.DecodeString(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode signature for %s: %w", entry.sig.Signer, err)
+		}
+		if len(sigBytes) != 65 {
+			return nil, fmt.Errorf("signature for %s has invalid length %d", entry.sig.Signer, len(sigBytes))
+		}
+		result = append(result, sigBytes...)
+	}
+
+	return result, nil
 }
 
 // SafeMessage represents a Safe message with signatures
@@ -164,12 +215,12 @@ type TransactionBase struct {
 
 // TransactionOptions represents optional transaction parameters
 type TransactionOptions struct {
-	From                 *string   `json:"from,omitempty"`                 // From address
-	GasLimit             *big.Int  `json:"gasLimit,omitempty"`             // Gas limit
-	GasPrice             *big.Int  `json:"gasPrice,omitempty"`             // Gas price
-	MaxFeePerGas         *big.Int  `json:"maxFeePerGas,omitempty"`         // EIP-1559 max fee per gas
-	MaxPriorityFeePerGas *big.Int  `json:"maxPriorityFeePerGas,omitempty"` // EIP-1559 max priority fee per gas
-	Nonce                *uint64   `json:"nonce,omitempty"`                // Transaction nonce
+	From                 *string  `json:"from,omitempty"`                 // From address
+	GasLimit             *big.Int `json:"gasLimit,omitempty"`             // Gas limit
+	GasPrice             *big.Int `json:"gasPrice,omitempty"`             // Gas price
+	MaxFeePerGas         *big.Int `json:"maxFeePerGas,omitempty"`         // EIP-1559 max fee per gas
+	MaxPriorityFeePerGas *big.Int `json:"maxPriorityFeePerGas,omitempty"` // EIP-1559 max priority fee per gas
+	Nonce                *uint64  `json:"nonce,omitempty"`                // Transaction nonce
 }
 
 // Transaction combines base transaction data with options
@@ -186,8 +237,8 @@ type BaseTransactionResult struct {
 // TransactionResult represents complete transaction result
 type TransactionResult struct {
 	BaseTransactionResult
-	TransactionResponse interface{}         `json:"transactionResponse"`    // Provider-specific transaction response
-	Options             *TransactionOptions `json:"options,omitempty"`      // Transaction options used
+	TransactionResponse interface{}         `json:"transactionResponse"` // Provider-specific transaction response
+	Options             *TransactionOptions `json:"options,omitempty"`   // Transaction options used
 }
 
 // EIP3770Address represents an address with chain prefix (EIP-3770)
@@ -217,20 +268,20 @@ type EIP712Type struct {
 
 // EIP712Domain represents the EIP-712 domain separator
 type EIP712Domain struct {
-	Name              *string   `json:"name,omitempty"`              // Domain name
-	Version           *string   `json:"version,omitempty"`           // Domain version
-	ChainId           *big.Int  `json:"chainId,omitempty"`           // Chain ID
-	VerifyingContract *string   `json:"verifyingContract,omitempty"` // Verifying contract address
-	Salt              *string   `json:"salt,omitempty"`              // Salt for domain separation
+	Name              *string  `json:"name,omitempty"`              // Domain name
+	Version           *string  `json:"version,omitempty"`           // Domain version
+	ChainId           *big.Int `json:"chainId,omitempty"`           // Chain ID
+	VerifyingContract *string  `json:"verifyingContract,omitempty"` // Verifying contract address
+	Salt              *string  `json:"salt,omitempty"`              // Salt for domain separation
 }
 
 // SigningMethod represents different methods of signing
 type SigningMethod string
 
 const (
-	SigningMethodETHSign     SigningMethod = "eth_sign"
+	SigningMethodETHSign          SigningMethod = "eth_sign"
 	SigningMethodETHSignTypedData SigningMethod = "eth_signTypedData"
-	SigningMethodSafeSignMessage SigningMethod = "safe_signMessage"
+	SigningMethodSafeSignMessage  SigningMethod = "safe_signMessage"
 )
 
 // SigningMethodType represents the type of signing method

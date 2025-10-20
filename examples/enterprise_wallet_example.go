@@ -4,36 +4,47 @@ import (
 	"bufio"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
-	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum"
-	"github.com/joho/godotenv"
-	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+    "github.com/ethereum/go-ethereum"
+    ethabi "github.com/ethereum/go-ethereum/accounts/abi"
+    "github.com/ethereum/go-ethereum/accounts/abi/bind"
+    "github.com/ethereum/go-ethereum/common"
+    gethtypes "github.com/ethereum/go-ethereum/core/types"
+    "github.com/ethereum/go-ethereum/crypto"
+    "github.com/ethereum/go-ethereum/ethclient"
+    "github.com/joho/godotenv"
+    "github.com/vikkkko/safe-core-sdk-golang/api"
+    "github.com/vikkkko/safe-core-sdk-golang/protocol"
+    "github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+    safetypes "github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 const (
-	FactoryAddress     = "0xC5473e192d07420B09b684086d3631830b268bE7"
-	ImplementationAddr = "0x5D92e1c1B4F8fB2a291B9A44451dBE4eAAe2b286"
-	SafeFactoryAddress = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
+	FactoryAddress       = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
+	ImplementationAddr   = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
+	SafeFactoryAddress   = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
 	SafeSingletonAddress = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
 )
 
 // Context holds all necessary data for examples
 type ExampleContext struct {
 	Client          *ethclient.Client
+	RPCURL          string
 	PrivateKey      *ecdsa.PrivateKey
+	PrivateKeyHex   string
 	FromAddress     common.Address
 	ChainID         *big.Int
+	SafeAddress     string
+	SafeAPIKey      string
+	SafeAPIURL      string
 	FactoryContract *EnterpriseWalletFactoryContract
 }
 
@@ -123,7 +134,7 @@ func (f *EnterpriseWalletFactoryContract) PredictWalletAddress(opts *bind.CallOp
 	return *ethabi.ConvertType(out[0], new(common.Address)).(*common.Address), nil
 }
 
-func (f *EnterpriseWalletFactoryContract) CreateWallet(auth *bind.TransactOpts, implementation common.Address, salt [32]byte, params factoryInitParams) (*types.Transaction, error) {
+func (f *EnterpriseWalletFactoryContract) CreateWallet(auth *bind.TransactOpts, implementation common.Address, salt [32]byte, params factoryInitParams) (*gethtypes.Transaction, error) {
 	return f.contract.Transact(auth, "createWallet", implementation, salt, params)
 }
 
@@ -191,19 +202,19 @@ func (w *EnterpriseWalletContract) IsCollectionAccount(opts *bind.CallOpts, acco
 	return *ethabi.ConvertType(out[0], new(bool)).(*bool), nil
 }
 
-func (w *EnterpriseWalletContract) CreatePaymentAccount(auth *bind.TransactOpts, name string, controller common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) CreatePaymentAccount(auth *bind.TransactOpts, name string, controller common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "createPaymentAccount", name, controller)
 }
 
-func (w *EnterpriseWalletContract) CreateCollectionAccount(auth *bind.TransactOpts, name string, target common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) CreateCollectionAccount(auth *bind.TransactOpts, name string, target common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "createCollectionAccount", name, target)
 }
 
-func (w *EnterpriseWalletContract) SetCollectionTarget(auth *bind.TransactOpts, collectionAccount, target common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) SetCollectionTarget(auth *bind.TransactOpts, collectionAccount, target common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "setCollectionTarget", collectionAccount, target)
 }
 
-func (w *EnterpriseWalletContract) CollectFunds(auth *bind.TransactOpts, token, collectionAccount common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) CollectFunds(auth *bind.TransactOpts, token, collectionAccount common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "collectFunds", token, collectionAccount)
 }
 
@@ -213,7 +224,7 @@ func (w *EnterpriseWalletContract) CreateSafeAndPaymentAccount(
 	safeSingleton common.Address,
 	params utils.SafeSetupParams,
 	name string,
-) (*types.Transaction, error) {
+) (*gethtypes.Transaction, error) {
 	setup := convertSafeSetupParams(params)
 	return w.contract.Transact(auth, "createSafeAndPaymentAccount", proxyFactory, safeSingleton, setup, name)
 }
@@ -225,44 +236,44 @@ func (w *EnterpriseWalletContract) CreateSafeAndCollectionAccount(
 	params utils.SafeSetupParams,
 	name string,
 	collectionTarget common.Address,
-) (*types.Transaction, error) {
+) (*gethtypes.Transaction, error) {
 	setup := convertSafeSetupParams(params)
 	return w.contract.Transact(auth, "createSafeAndCollectionAccount", proxyFactory, safeSingleton, setup, name, collectionTarget)
 }
 
-func (w *EnterpriseWalletContract) UpdateMethodController(auth *bind.TransactOpts, method [4]byte, controller common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) UpdateMethodController(auth *bind.TransactOpts, method [4]byte, controller common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "updateMethodController", method, controller)
 }
 
-func (w *EnterpriseWalletContract) UpdateMethodControllers(auth *bind.TransactOpts, methods [][4]byte, controllers []common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) UpdateMethodControllers(auth *bind.TransactOpts, methods [][4]byte, controllers []common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "updateMethodControllers", methods, controllers)
 }
 
-func (w *EnterpriseWalletContract) SetMethodController(auth *bind.TransactOpts, methods [][4]byte, controller common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) SetMethodController(auth *bind.TransactOpts, methods [][4]byte, controller common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "setMethodController", methods, controller)
 }
 
-func (w *EnterpriseWalletContract) UpdatePaymentAccountController(auth *bind.TransactOpts, paymentAccount, controller common.Address) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) UpdatePaymentAccountController(auth *bind.TransactOpts, paymentAccount, controller common.Address) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "updatePaymentAccountController", paymentAccount, controller)
 }
 
-func (w *EnterpriseWalletContract) EmergencyFreeze(auth *bind.TransactOpts, target common.Address, freeze bool) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) EmergencyFreeze(auth *bind.TransactOpts, target common.Address, freeze bool) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "emergencyFreeze", target, freeze)
 }
 
-func (w *EnterpriseWalletContract) EmergencyPause(auth *bind.TransactOpts, pause bool) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) EmergencyPause(auth *bind.TransactOpts, pause bool) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "emergencyPause", pause)
 }
 
-func (w *EnterpriseWalletContract) ProposeSuperAdminTransfer(auth *bind.TransactOpts, newSuperAdmin common.Address, timeout *big.Int) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) ProposeSuperAdminTransfer(auth *bind.TransactOpts, newSuperAdmin common.Address, timeout *big.Int) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "proposeSuperAdminTransfer", newSuperAdmin, timeout)
 }
 
-func (w *EnterpriseWalletContract) ConfirmSuperAdminTransfer(auth *bind.TransactOpts) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) ConfirmSuperAdminTransfer(auth *bind.TransactOpts) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "confirmSuperAdminTransfer")
 }
 
-func (w *EnterpriseWalletContract) CancelSuperAdminTransfer(auth *bind.TransactOpts) (*types.Transaction, error) {
+func (w *EnterpriseWalletContract) CancelSuperAdminTransfer(auth *bind.TransactOpts) (*gethtypes.Transaction, error) {
 	return w.contract.Transact(auth, "cancelSuperAdminTransfer")
 }
 
@@ -335,6 +346,9 @@ func initializeContext() (*ExampleContext, error) {
 	rpcURL := os.Getenv("RPC_URL")
 	privateKeyHex := os.Getenv("DEPLOYER_PRIVATE_KEY")
 	chainIDStr := os.Getenv("CHAIN_ID")
+	safeAddress := os.Getenv("SAFE_ADDRESS")
+	safeAPIKey := os.Getenv("SAFE_API_KEY")
+	safeAPIURL := os.Getenv("SAFE_API_BASE_URL")
 
 	if rpcURL == "" || privateKeyHex == "" || chainIDStr == "" {
 		return nil, fmt.Errorf("please set RPC_URL, DEPLOYER_PRIVATE_KEY, and CHAIN_ID in .env file")
@@ -350,8 +364,9 @@ func initializeContext() (*ExampleContext, error) {
 		return nil, fmt.Errorf("failed to connect to Ethereum client: %w", err)
 	}
 
+	cleanPrivateKey := strings.TrimPrefix(privateKeyHex, "0x")
 	// Parse private key
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	privateKey, err := crypto.HexToECDSA(cleanPrivateKey)
 	if err != nil {
 		client.Close()
 		return nil, fmt.Errorf("failed to parse private key: %w", err)
@@ -375,9 +390,14 @@ func initializeContext() (*ExampleContext, error) {
 
 	return &ExampleContext{
 		Client:          client,
+		RPCURL:          rpcURL,
 		PrivateKey:      privateKey,
+		PrivateKeyHex:   cleanPrivateKey,
 		FromAddress:     fromAddress,
 		ChainID:         chainID,
+		SafeAddress:     safeAddress,
+		SafeAPIKey:      safeAPIKey,
+		SafeAPIURL:      safeAPIURL,
 		FactoryContract: factoryContract,
 	}, nil
 }
@@ -583,22 +603,31 @@ func deployWallet(ctx *ExampleContext) {
 	saltStr := prompt("Enter salt")
 	copy(salt[:], []byte(saltStr))
 
+	// 从环境变量读取Safe地址
+	safeAddress := os.Getenv("SAFE_ADDRESS")
+	if safeAddress == "" {
+		log.Printf("Error: SAFE_ADDRESS not set in .env, falling back to direct call")
+		createSafeAndPaymentAccountDirect(ctx)
+		return
+	}
+
 	// Prepare init params
 	methodSelectors := [][4]byte{
 		utils.CreatePaymentAccountSelector,
+		utils.CreateSafeAndPaymentAccountSelector,
 		utils.CreateCollectionAccountSelector,
 		utils.CollectFundsSelector,
 	}
 
 	configs := make([]utils.MethodConfig, len(methodSelectors))
 	for i := range methodSelectors {
-		configs[i] = utils.MethodConfig{Controller: ctx.FromAddress}
+		configs[i] = utils.MethodConfig{Controller: common.HexToAddress(safeAddress)}
 	}
 
 	contractInitParams := factoryInitParams{
 		Methods:    methodSelectors,
 		Configs:    configs,
-		SuperAdmin: ctx.FromAddress,
+		SuperAdmin: common.HexToAddress(safeAddress),
 	}
 
 	// Show calldata
@@ -608,7 +637,7 @@ func deployWallet(ctx *ExampleContext) {
 		utils.InitParams{
 			Methods:    methodSelectors,
 			Configs:    configs,
-			SuperAdmin: ctx.FromAddress,
+			SuperAdmin: common.HexToAddress(safeAddress),
 		},
 	)
 	if err != nil {
@@ -638,7 +667,220 @@ func deployWallet(ctx *ExampleContext) {
 }
 
 func createPaymentAccount(ctx *ExampleContext) {
-	fmt.Println("=== Create Payment Account ===")
+	fmt.Println("=== Create Payment Account (via Multisig) ===")
+
+	// 从环境变量读取Safe地址
+	safeAddress := os.Getenv("SAFE_ADDRESS")
+	if safeAddress == "" {
+		log.Printf("Error: SAFE_ADDRESS not set in .env, falling back to direct call")
+		createPaymentAccountDirect(ctx)
+		return
+	}
+
+	walletAddr := promptAddress("Enterprise wallet address", "")
+	accountName := prompt("Account name")
+	controller := promptAddress("Controller address", ctx.FromAddress.Hex())
+
+	// Prepare calldata
+	data, err := utils.CreatePaymentAccountData(accountName, controller)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("\nCalldata: 0x%x\n", data)
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Will be called via Safe multisig: %s\n", safeAddress)
+
+	if !confirmSend() {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// 创建Safe客户端和API客户端
+	fmt.Printf("\n🔧 创建Safe客户端...")
+	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
+		SafeAddress: safeAddress,
+		RpcURL:      os.Getenv("RPC_URL"),
+		ChainID:     ctx.ChainID.Int64(),
+	})
+	if err != nil {
+		log.Printf("创建Safe客户端失败: %v", err)
+		return
+	}
+
+	apiKey := os.Getenv("SAFE_API_KEY")
+	apiClient, err := api.NewSafeApiKit(api.SafeApiKitConfig{
+		ChainID: ctx.ChainID.Int64(),
+		ApiKey:  apiKey,
+	})
+	if err != nil {
+		log.Printf("创建API客户端失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 获取Safe信息
+	fmt.Printf("📊 获取Safe信息...")
+	safeInfo, err := apiClient.GetSafeInfo(context.Background(), safeAddress)
+	if err != nil {
+		log.Printf("获取Safe信息失败: %v", err)
+		return
+	}
+
+	currentNonce, err := strconv.ParseUint(safeInfo.Nonce, 10, 64)
+	if err != nil {
+		log.Printf("解析随机数失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅ (阈值: %d/%d, 随机数: %d)\n", safeInfo.Threshold, len(safeInfo.Owners), currentNonce)
+
+	// 创建Safe交易
+	fmt.Printf("📋 创建Safe交易...")
+	txData := safetypes.SafeTransactionDataPartial{
+		To:    walletAddr.Hex(),
+		Value: "0",
+		Data:  "0x" + hex.EncodeToString(data),
+		Nonce: &currentNonce,
+	}
+
+	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
+	if err != nil {
+		log.Printf("创建交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 从Safe合约获取交易哈希
+	fmt.Printf("🔐 获取Safe交易哈希...")
+	value := new(big.Int)
+	value.SetString(transaction.Data.Value, 10)
+
+	safeTxGas := new(big.Int)
+	safeTxGas.SetString(transaction.Data.SafeTxGas, 10)
+
+	baseGas := new(big.Int)
+	baseGas.SetString(transaction.Data.BaseGas, 10)
+
+	gasPrice := new(big.Int)
+	gasPrice.SetString(transaction.Data.GasPrice, 10)
+
+	txHashBytes, err := safeClient.GetTransactionHash(
+		context.Background(),
+		common.HexToAddress(transaction.Data.To),
+		value,
+		common.FromHex(transaction.Data.Data),
+		uint8(transaction.Data.Operation),
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		common.HexToAddress(transaction.Data.GasToken),
+		common.HexToAddress(transaction.Data.RefundReceiver),
+		new(big.Int).SetUint64(transaction.Data.Nonce),
+	)
+	if err != nil {
+		log.Printf("获取交易哈希失败: %v", err)
+		return
+	}
+	txHash := txHashBytes[:]
+	safeTxHash := hex.EncodeToString(txHash)
+	fmt.Printf(" ✅\n   交易哈希: 0x%s\n", safeTxHash)
+
+	// 签名交易
+	fmt.Printf("\n✍️  签名交易...")
+	signature, err := utils.SignMessage(txHash, ctx.PrivateKey)
+	if err != nil {
+		log.Printf("签名交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n   签名者: %s\n", ctx.FromAddress.Hex())
+
+	// 提交到Safe服务
+	fmt.Printf("\n📤 提交交易到Safe服务...")
+	proposal := api.ProposeTransactionProps{
+		SafeAddress:             safeAddress,
+		SafeTxHash:              "0x" + safeTxHash,
+		To:                      transaction.Data.To,
+		Value:                   transaction.Data.Value,
+		Data:                    transaction.Data.Data,
+		Operation:               int(transaction.Data.Operation),
+		GasToken:                transaction.Data.GasToken,
+		SafeTxGas:               0,
+		BaseGas:                 0,
+		GasPrice:                transaction.Data.GasPrice,
+		RefundReceiver:          transaction.Data.RefundReceiver,
+		Nonce:                   int64(transaction.Data.Nonce),
+		Sender:                  ctx.FromAddress.Hex(),
+		Signature:               "0x" + hex.EncodeToString(signature),
+		ContractTransactionHash: "0x" + safeTxHash,
+	}
+
+	response, err := apiClient.ProposeTransaction(context.Background(), proposal)
+	if err != nil {
+		log.Printf("提交失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+	fmt.Printf("   SAFE Transaction Hash: %s\n", response.SafeTxHash)
+	fmt.Printf("   当前签名数: %d/%d\n", len(response.Confirmations), safeInfo.Threshold)
+
+	// 查看交易签名状态
+	fmt.Printf("\n📋 获取交易签名详情...")
+	txDetails, err := apiClient.GetMultisigTransaction(context.Background(), response.SafeTxHash)
+	if err != nil {
+		log.Printf("获取失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	fmt.Printf("\n=== 交易签名状态 ===\n")
+	fmt.Printf("Safe地址: %s\n", txDetails.Safe)
+	fmt.Printf("目标合约: %s\n", txDetails.To)
+	fmt.Printf("交易哈希: %s\n", txDetails.SafeTxHash)
+	fmt.Printf("随机数: %d\n", txDetails.Nonce)
+	fmt.Printf("需要签名数: %d\n", txDetails.ConfirmationsRequired)
+	fmt.Printf("当前签名数: %d\n", len(txDetails.Confirmations))
+	fmt.Printf("已执行: %v\n", txDetails.IsExecuted)
+
+	if len(txDetails.Confirmations) > 0 {
+		fmt.Printf("\n已签名地址:\n")
+		for i, confirmation := range txDetails.Confirmations {
+			fmt.Printf("  %d. %s\n", i+1, confirmation.Owner)
+			fmt.Printf("     签名: %s...\n", confirmation.Signature[:20])
+			fmt.Printf("     时间: %s\n", confirmation.SubmissionDate.Format("2006-01-02 15:04:05"))
+		}
+	}
+
+	// 判断是否可以执行
+	if len(txDetails.Confirmations) >= txDetails.ConfirmationsRequired {
+		fmt.Printf("\n✅ 交易已收集足够签名，可以执行!\n")
+		fmt.Printf("\n💡 说明: 这是通过Safe多签调用Enterprise Wallet的createPaymentAccount\n")
+		fmt.Printf("   - 当前是1/1多签，已经可以执行\n")
+		fmt.Printf("   - 可以在Safe界面或使用SDK执行交易\n")
+	} else {
+		need := txDetails.ConfirmationsRequired - len(txDetails.Confirmations)
+		fmt.Printf("\n⏳ 还需要 %d 个签名才能执行\n", need)
+
+		// 列出待签名地址
+		fmt.Printf("\n待签名地址:\n")
+		for _, owner := range safeInfo.Owners {
+			isSigned := false
+			for _, confirmation := range txDetails.Confirmations {
+				if strings.EqualFold(confirmation.Owner, owner) {
+					isSigned = true
+					break
+				}
+			}
+			if !isSigned {
+				fmt.Printf("  - %s\n", owner)
+			}
+		}
+	}
+}
+
+// createPaymentAccountDirect 是直接调用（EOA方式）的备用方法
+func createPaymentAccountDirect(ctx *ExampleContext) {
+	fmt.Println("=== Create Payment Account (Direct Call) ===")
 
 	walletAddr := promptAddress("Enterprise wallet address", "")
 	accountName := prompt("Account name")
@@ -718,7 +960,15 @@ func createCollectionAccount(ctx *ExampleContext) {
 }
 
 func createSafeAndPaymentAccount(ctx *ExampleContext) {
-	fmt.Println("=== Create Safe + Payment Account ===")
+	fmt.Println("=== Create Safe + Payment Account (via Multisig) ===")
+
+	// 从上下文读取 Safe 地址
+	safeAddress := ctx.SafeAddress
+	if safeAddress == "" {
+		log.Printf("Error: SAFE_ADDRESS not set in .env, falling back to direct call")
+		createSafeAndPaymentAccountDirect(ctx)
+		return
+	}
 
 	walletAddr := promptAddress("Enterprise wallet address", "")
 	safeProxyFactory := promptAddress("Safe proxy factory", SafeFactoryAddress)
@@ -734,7 +984,262 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 		PaymentToken:    common.Address{},
 		Payment:         big.NewInt(0),
 		PaymentReceiver: ctx.FromAddress,
-		SaltNonce:       big.NewInt(0),
+		SaltNonce:       big.NewInt(time.Now().Unix()), // 使用时间戳确保每次部署地址不同
+	}
+
+	// Prepare calldata for enterprise wallet
+	data, err := utils.CreateSafeAndPaymentAccountData(safeProxyFactory, safeSingleton, params, accountName)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("\nCalldata: 0x%x\n", data)
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Will be called via Safe multisig: %s\n", safeAddress)
+
+	if !confirmSend() {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// 创建Safe客户端和API客户端
+	fmt.Printf("\n🔧 创建Safe客户端...")
+	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
+		SafeAddress: safeAddress,
+		RpcURL:      ctx.RPCURL,
+		ChainID:     ctx.ChainID.Int64(),
+		PrivateKey:  ctx.PrivateKeyHex,
+	})
+	if err != nil {
+		log.Printf("创建Safe客户端失败: %v", err)
+		return
+	}
+
+	if ctx.SafeAPIKey == "" {
+		fmt.Printf(" ⚠️  SAFE_API_KEY 未配置，将在签名后直接通过 SDK 执行\n")
+	}
+
+	apiConfig := api.SafeApiKitConfig{
+		ChainID: ctx.ChainID.Int64(),
+		ApiKey:  ctx.SafeAPIKey,
+	}
+	if ctx.SafeAPIURL != "" {
+		apiConfig.TxServiceURL = ctx.SafeAPIURL
+	}
+	apiClient, err := api.NewSafeApiKit(apiConfig)
+	if err != nil {
+		log.Printf("创建API客户端失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 获取Safe信息
+	fmt.Printf("📊 获取Safe信息...")
+	safeInfo, err := apiClient.GetSafeInfo(context.Background(), safeAddress)
+	if err != nil {
+		log.Printf("获取Safe信息失败: %v", err)
+		return
+	}
+
+	currentNonce, err := strconv.ParseUint(safeInfo.Nonce, 10, 64)
+	if err != nil {
+		log.Printf("解析随机数失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅ (阈值: %d/%d, 随机数: %d)\n", safeInfo.Threshold, len(safeInfo.Owners), currentNonce)
+
+	// 创建Safe交易
+	fmt.Printf("📋 创建Safe交易...")
+	txData := safetypes.SafeTransactionDataPartial{
+		To:    walletAddr.Hex(),
+		Value: "0",
+		Data:  "0x" + hex.EncodeToString(data),
+		Nonce: &currentNonce,
+	}
+
+	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
+	if err != nil {
+		log.Printf("创建交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 从Safe合约获取交易哈希
+	fmt.Printf("🔐 获取Safe交易哈希...")
+	value := new(big.Int)
+	value.SetString(transaction.Data.Value, 10)
+
+	safeTxGas := new(big.Int)
+	safeTxGas.SetString(transaction.Data.SafeTxGas, 10)
+
+	baseGas := new(big.Int)
+	baseGas.SetString(transaction.Data.BaseGas, 10)
+
+	gasPrice := new(big.Int)
+	gasPrice.SetString(transaction.Data.GasPrice, 10)
+
+	txHashBytes, err := safeClient.GetTransactionHash(
+		context.Background(),
+		common.HexToAddress(transaction.Data.To),
+		value,
+		common.FromHex(transaction.Data.Data),
+		uint8(transaction.Data.Operation),
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		common.HexToAddress(transaction.Data.GasToken),
+		common.HexToAddress(transaction.Data.RefundReceiver),
+		new(big.Int).SetUint64(transaction.Data.Nonce),
+	)
+	if err != nil {
+		log.Printf("获取交易哈希失败: %v", err)
+		return
+	}
+	txHash := txHashBytes[:]
+	safeTxHash := hex.EncodeToString(txHash)
+	fmt.Printf(" ✅\n   交易哈希: 0x%s\n", safeTxHash)
+
+	// 签名交易
+	fmt.Printf("\n✍️  签名交易...")
+	signature, err := utils.SignMessage(txHash, ctx.PrivateKey)
+	if err != nil {
+		log.Printf("签名交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n   签名者: %s\n", ctx.FromAddress.Hex())
+
+	transaction.AddSignature(safetypes.SafeSignature{
+		Signer: ctx.FromAddress.Hex(),
+		Data:   "0x" + hex.EncodeToString(signature),
+	})
+
+	if ctx.SafeAPIKey == "" {
+		result, execErr := safeClient.ExecuteTransaction(context.Background(), transaction)
+		if execErr != nil {
+			log.Printf("执行Safe交易失败: %v", execErr)
+			return
+		}
+		fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
+		if txObj, ok := result.TransactionResponse.(*gethtypes.Transaction); ok {
+			waitForTransaction(ctx, txObj)
+		}
+		return
+	}
+
+	// 提交到Safe服务
+	fmt.Printf("\n📤 提交交易到Safe服务...")
+	proposal := api.ProposeTransactionProps{
+		SafeAddress:             safeAddress,
+		SafeTxHash:              "0x" + safeTxHash,
+		To:                      transaction.Data.To,
+		Value:                   transaction.Data.Value,
+		Data:                    transaction.Data.Data,
+		Operation:               int(transaction.Data.Operation),
+		GasToken:                transaction.Data.GasToken,
+		SafeTxGas:               0,
+		BaseGas:                 0,
+		GasPrice:                transaction.Data.GasPrice,
+		RefundReceiver:          transaction.Data.RefundReceiver,
+		Nonce:                   int64(transaction.Data.Nonce),
+		Sender:                  ctx.FromAddress.Hex(),
+		Signature:               "0x" + hex.EncodeToString(signature),
+		ContractTransactionHash: "0x" + safeTxHash,
+	}
+
+	_, err = apiClient.ProposeTransaction(context.Background(), proposal)
+	if err != nil {
+		log.Printf("提交失败: %v", err)
+		return
+	}
+
+	// 等待30s
+	fmt.Println("等待30s后获取交易签名详情")
+	time.Sleep(30 * time.Second)
+
+	// 查看交易签名状态
+	fmt.Printf("\n📋 获取交易签名详情...")
+	txDetails, err := apiClient.GetMultisigTransaction(context.Background(), "0x"+safeTxHash)
+	if err != nil {
+		log.Printf("获取失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	fmt.Printf("\n=== 交易签名状态 ===\n")
+	fmt.Printf("Safe地址: %s\n", txDetails.Safe)
+	fmt.Printf("目标合约: %s\n", txDetails.To)
+	fmt.Printf("交易哈希: %s\n", txDetails.SafeTxHash)
+	fmt.Printf("随机数: %d\n", txDetails.Nonce)
+	fmt.Printf("需要签名数: %d\n", txDetails.ConfirmationsRequired)
+	fmt.Printf("当前签名数: %d\n", len(txDetails.Confirmations))
+	fmt.Printf("已执行: %v\n", txDetails.IsExecuted)
+
+	if len(txDetails.Confirmations) > 0 {
+		fmt.Printf("\n已签名地址:\n")
+		for i, confirmation := range txDetails.Confirmations {
+			fmt.Printf("  %d. %s\n", i+1, confirmation.Owner)
+			fmt.Printf("     签名: %s...\n", confirmation.Signature[:20])
+			fmt.Printf("     时间: %s\n", confirmation.SubmissionDate.Format("2006-01-02 15:04:05"))
+		}
+	}
+
+	// 判断是否可以执行
+	if len(txDetails.Confirmations) >= txDetails.ConfirmationsRequired {
+		fmt.Printf("\n✅ 交易已收集足够签名，即将通过 SDK 执行!\n")
+		safeTx, buildErr := buildSafeTransactionFromDetails(txDetails)
+		if buildErr != nil {
+			log.Printf("构建Safe交易失败: %v", buildErr)
+			return
+		}
+
+		result, execErr := safeClient.ExecuteTransaction(context.Background(), safeTx)
+		if execErr != nil {
+			log.Printf("执行Safe交易失败: %v", execErr)
+			return
+		}
+
+		fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
+	} else {
+		need := txDetails.ConfirmationsRequired - len(txDetails.Confirmations)
+		fmt.Printf("\n⏳ 还需要 %d 个签名才能执行\n", need)
+
+		// 列出待签名地址
+		fmt.Printf("\n待签名地址:\n")
+		for _, owner := range safeInfo.Owners {
+			isSigned := false
+			for _, confirmation := range txDetails.Confirmations {
+				if strings.EqualFold(confirmation.Owner, owner) {
+					isSigned = true
+					break
+				}
+			}
+			if !isSigned {
+				fmt.Printf("  - %s\n", owner)
+			}
+		}
+	}
+}
+
+// createSafeAndPaymentAccountDirect 是直接调用（EOA方式）的备用方法
+func createSafeAndPaymentAccountDirect(ctx *ExampleContext) {
+	fmt.Println("=== Create Safe + Payment Account (Direct Call) ===")
+
+	walletAddr := promptAddress("Enterprise wallet address", "")
+	safeProxyFactory := promptAddress("Safe proxy factory", SafeFactoryAddress)
+	safeSingleton := promptAddress("Safe singleton", SafeSingletonAddress)
+	accountName := prompt("Payment account name")
+
+	params := utils.SafeSetupParams{
+		Owners:          []common.Address{ctx.FromAddress},
+		Threshold:       big.NewInt(1),
+		To:              common.Address{},
+		Data:            []byte{},
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: ctx.FromAddress,
+		SaltNonce:       big.NewInt(time.Now().Unix()), // 使用时间戳确保每次部署地址不同
 	}
 
 	// Prepare calldata
@@ -788,7 +1293,7 @@ func createSafeAndCollectionAccount(ctx *ExampleContext) {
 		PaymentToken:    common.Address{},
 		Payment:         big.NewInt(0),
 		PaymentReceiver: ctx.FromAddress,
-		SaltNonce:       big.NewInt(0),
+		SaltNonce:       big.NewInt(time.Now().Unix()), // 使用时间戳确保每次部署地址不同
 	}
 
 	// Prepare calldata
@@ -1284,6 +1789,17 @@ func queryMethodConfig(ctx *ExampleContext) {
 
 	fmt.Printf("\nMethod: createPaymentAccount (0x%x)\n", methodSig)
 	fmt.Printf("Controller: %s\n", config.Controller.Hex())
+
+	methodSig = utils.CreateSafeAndPaymentAccountSelector
+	config, err = wallet.GetMethodConfig(&bind.CallOpts{}, methodSig)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		return
+	}
+
+	fmt.Printf("\nMethod: createSafeAndPaymentAccount (0x%x)\n", methodSig)
+	fmt.Printf("Controller: %s\n", config.Controller.Hex())
+
 }
 
 func checkAccountType(ctx *ExampleContext) {
@@ -1352,7 +1868,6 @@ func showMethodSelectors() {
 	fmt.Printf("createCollectionAccount:        0x%x\n", utils.CreateCollectionAccountSelector)
 	fmt.Printf("collectFunds:                   0x%x\n", utils.CollectFundsSelector)
 	fmt.Printf("createSafeAndPaymentAccount:    0x%x\n", utils.CreateSafeAndPaymentAccountSelector)
-	fmt.Printf("createSafeAndCollectionAccount: 0x%x\n", utils.CreateSafeAndCollectionAccountSelector)
 	fmt.Printf("proposeSuperAdminTransfer:      0x%x\n", utils.ProposeSuperAdminTransferSelector)
 	fmt.Printf("confirmSuperAdminTransfer:      0x%x\n", utils.ConfirmSuperAdminTransferSelector)
 	fmt.Printf("cancelSuperAdminTransfer:       0x%x\n", utils.CancelSuperAdminTransferSelector)
@@ -1409,7 +1924,7 @@ func getAuth(ctx *ExampleContext, to *common.Address, calldata []byte) *bind.Tra
 	return auth
 }
 
-func waitForTransaction(ctx *ExampleContext, tx *types.Transaction) {
+func waitForTransaction(ctx *ExampleContext, tx *gethtypes.Transaction) {
 	fmt.Println("Waiting for confirmation...")
 
 	receipt, err := bind.WaitMined(context.Background(), ctx.Client, tx)
@@ -1466,4 +1981,60 @@ func safeBigInt(value *big.Int) *big.Int {
 		return big.NewInt(0)
 	}
 	return value
+}
+
+func normalizeDataHex(value string) string {
+	if value == "" {
+		return "0x"
+	}
+	if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+		return value
+	}
+	return "0x" + value
+}
+
+func normalizeAddressHex(value string) string {
+	if value == "" {
+		return common.Address{}.Hex()
+	}
+	if !strings.HasPrefix(value, "0x") && !strings.HasPrefix(value, "0X") {
+		value = "0x" + value
+	}
+	return common.HexToAddress(value).Hex()
+}
+
+func buildSafeTransactionFromDetails(details *api.SafeMultisigTransactionResponse) (*safetypes.SafeTransaction, error) {
+	if details == nil {
+		return nil, fmt.Errorf("transaction details missing")
+	}
+
+	tx := &safetypes.SafeTransaction{
+		Data: safetypes.SafeTransactionData{
+			To:             normalizeAddressHex(details.To),
+			Value:          details.Value,
+			Data:           normalizeDataHex(details.Data),
+			Operation:      safetypes.OperationType(details.Operation),
+			SafeTxGas:      strconv.FormatInt(details.SafeTxGas, 10),
+			BaseGas:        strconv.FormatInt(details.BaseGas, 10),
+			GasPrice:       details.GasPrice,
+			GasToken:       normalizeAddressHex(details.GasToken),
+			RefundReceiver: normalizeAddressHex(details.RefundReceiver),
+			Nonce:          uint64(details.Nonce),
+		},
+		Signatures: make(map[string]safetypes.SafeSignature),
+	}
+
+	for _, confirmation := range details.Confirmations {
+		sig := confirmation.Signature
+		if !strings.HasPrefix(sig, "0x") && !strings.HasPrefix(sig, "0X") {
+			sig = "0x" + sig
+		}
+		lowerOwner := strings.ToLower(confirmation.Owner)
+		tx.Signatures[lowerOwner] = safetypes.SafeSignature{
+			Signer: confirmation.Owner,
+			Data:   sig,
+		}
+	}
+
+	return tx, nil
 }
