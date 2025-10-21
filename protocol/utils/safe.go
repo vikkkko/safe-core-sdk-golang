@@ -148,3 +148,76 @@ func CallSafeMethod(client *ethclient.Client, safeAddress common.Address, method
 
 	return outputs, nil
 }
+
+// SafeAddOwnerWithThresholdData creates calldata for addOwnerWithThreshold function
+// Parameters:
+//   - owner: New owner address to add
+//   - threshold: New threshold (use 0 to keep current threshold)
+func SafeAddOwnerWithThresholdData(owner common.Address, threshold *big.Int) ([]byte, error) {
+	abi, err := SafeContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	data, err := abi.Pack("addOwnerWithThreshold", owner, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode addOwnerWithThreshold call: %w", err)
+	}
+
+	return data, nil
+}
+
+// SafeRemoveOwnerData creates calldata for removeOwner function
+// Parameters:
+//   - prevOwner: Previous owner in the linked list (use sentinel 0x1 if removing first owner)
+//   - owner: Owner address to remove
+//   - threshold: New threshold
+func SafeRemoveOwnerData(prevOwner, owner common.Address, threshold *big.Int) ([]byte, error) {
+	abi, err := SafeContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	data, err := abi.Pack("removeOwner", prevOwner, owner, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode removeOwner call: %w", err)
+	}
+
+	return data, nil
+}
+
+// SafeSwapOwnerData creates calldata for swapOwner function
+// Parameters:
+//   - prevOwner: Previous owner in the linked list (use sentinel 0x1 if swapping first owner)
+//   - oldOwner: Owner address to replace
+//   - newOwner: New owner address
+func SafeSwapOwnerData(prevOwner, oldOwner, newOwner common.Address) ([]byte, error) {
+	abi, err := SafeContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	data, err := abi.Pack("swapOwner", prevOwner, oldOwner, newOwner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode swapOwner call: %w", err)
+	}
+
+	return data, nil
+}
+
+// SafeChangeThresholdData creates calldata for changeThreshold function
+// Parameters:
+//   - threshold: New threshold
+func SafeChangeThresholdData(threshold *big.Int) ([]byte, error) {
+	abi, err := SafeContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	data, err := abi.Pack("changeThreshold", threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode changeThreshold call: %w", err)
+	}
+
+	return data, nil
+}
