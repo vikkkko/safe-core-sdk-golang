@@ -441,3 +441,22 @@ func PaymentAccountTransferData(token common.Address, from common.Address, to co
 
 	return data, nil
 }
+
+// PaymentAccountApproveData creates the call data for PaymentAccount.approve()
+// Parameters:
+//   - token: Token address (cannot be address(0))
+//   - to: Spender address
+//   - amount: Amount to approve
+func PaymentAccountApproveData(token common.Address, to common.Address, amount *big.Int) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(PaymentAccountABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PaymentAccount ABI: %w", err)
+	}
+
+	data, err := parsedABI.Pack("approve", token, to, amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode approve call: %w", err)
+	}
+
+	return data, nil
+}
