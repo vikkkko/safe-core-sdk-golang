@@ -30,7 +30,7 @@ func DefaultSafeSetupConfig(owners []common.Address, threshold uint) SafeSetupCo
 		To:        common.Address{}, // No delegate call
 		Data:      []byte{},          // No data
 		// Default fallback handler for Sepolia
-		FallbackHandler: common.HexToAddress("0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"),
+		FallbackHandler: common.Address{},
 		PaymentToken:    common.Address{}, // No payment token
 		Payment:         big.NewInt(0),    // No payment
 		PaymentReceiver: common.Address{}, // No payment receiver
