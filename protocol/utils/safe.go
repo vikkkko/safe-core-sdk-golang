@@ -221,3 +221,20 @@ func SafeChangeThresholdData(threshold *big.Int) ([]byte, error) {
 
 	return data, nil
 }
+
+// SafeSetGuardData creates calldata for setGuard function
+// Parameters:
+//   - guard: Guard contract address (use zero address to disable guard)
+func SafeSetGuardData(guard common.Address) ([]byte, error) {
+	abi, err := SafeContractMetaData.GetAbi()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe ABI: %w", err)
+	}
+
+	data, err := abi.Pack("setGuard", guard)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode setGuard call: %w", err)
+	}
+
+	return data, nil
+}

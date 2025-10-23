@@ -1010,11 +1010,47 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 	}
 	fmt.Printf("Threshold: %d/%d\n", threshold, len(owners))
 
+	// 询问是否需要设置 guard
+	guardInput := prompt("Guard address (留空则不设置)")
+	var guardAddress common.Address
+	var setupTo common.Address
+	var setupData []byte
+
+	if guardInput != "" {
+		if !common.IsHexAddress(guardInput) {
+			log.Printf("Error: Invalid guard address")
+			return
+		}
+		guardAddress = common.HexToAddress(guardInput)
+
+		// 询问 SafeGuardSetter 合约地址
+		guardSetterInput := prompt("SafeGuardSetter contract address (用于在 setup 时设置 guard)")
+		if !common.IsHexAddress(guardSetterInput) {
+			log.Printf("Error: Invalid SafeGuardSetter address")
+			return
+		}
+		guardSetterAddress := common.HexToAddress(guardSetterInput)
+
+		// 生成 setGuard calldata
+		// 使用 utils.SafeSetGuardData 方法生成标准的 setGuard calldata
+		var err error
+		setupData, err = utils.SafeSetGuardData(guardAddress)
+		if err != nil {
+			log.Printf("Error generating setGuard calldata: %v", err)
+			return
+		}
+
+		setupTo = guardSetterAddress
+		fmt.Printf("✅ 将通过 SafeGuardSetter (%s) 设置 Guard: %s\n", guardSetterAddress.Hex(), guardAddress.Hex())
+	} else {
+		fmt.Println("ℹ️  不设置 Guard")
+	}
+
 	params := utils.SafeSetupParams{
 		Owners:          owners,
 		Threshold:       big.NewInt(threshold),
-		To:              common.Address{},
-		Data:            []byte{},
+		To:              setupTo,   // SafeGuardSetter 合约地址（如果需要设置 guard）
+		Data:            setupData, // setGuard calldata（如果需要设置 guard）
 		FallbackHandler: common.Address{},
 		PaymentToken:    common.Address{},
 		Payment:         big.NewInt(0),
