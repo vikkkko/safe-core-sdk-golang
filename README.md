@@ -10,6 +10,7 @@
 - ✅ **API 集成** - Safe Transaction Service 完整支持
 - ✅ **ERC20 操作** - 基于 ABI 的代币转账、授权、查询
 - ✅ **企业钱包集成** - Payment/Collection账户管理、方法级权限控制
+- ✅ **GraphQL 查询** - The Graph 子图数据查询
 - ✅ **类型安全** - 完整的 Go 类型定义和编译时检查
 
 ## 🚀 快速开始
@@ -160,28 +161,26 @@ safe-core-sdk-golang/
 ├── api/                    # Safe Transaction Service API 客户端
 │   ├── client.go          # HTTP 客户端和 API 调用
 │   └── types.go           # API 响应类型定义
+├── graphql/               # The Graph 子图查询客户端
+│   ├── client.go          # GraphQL 客户端
+│   ├── types.go           # GraphQL 类型定义
+│   └── README.md          # GraphQL 模块文档
 ├── protocol/              # Safe 协议交互
 │   ├── safe.go            # Safe 客户端主要功能
 │   ├── contracts/         # 合约绑定（自动生成）
-│   │   ├── enterprise_wallet.go         # 企业钱包合约绑定
-│   │   └── enterprise_wallet_factory.go # 企业钱包工厂绑定
 │   ├── managers/          # 交易和签名管理器
 │   └── utils/             # 工具函数
-│       ├── safe.go              # Safe 初始化工具
-│       ├── safe_factory.go      # 工厂部署工具
-│       ├── signatures.go        # EIP-712 签名
-│       ├── erc20.go             # ERC20 ABI 工具
-│       ├── enterprise_wallet.go # 企业钱包工具函数
-│       └── address.go           # CREATE2 地址计算
 ├── types/                 # 核心类型定义
 │   └── types.go           # Safe 交易和签名类型
 ├── abi/                   # 合约ABI文件
-│   ├── EnterpriseWallet*.json        # 企业钱包ABI
-│   └── EnterpriseWalletFactory*.json # 工厂合约ABI
 ├── examples/              # 示例代码
 │   ├── create_multisig_wallet.go     # 创建多签钱包
 │   ├── transaction_workflow.go       # 交易工作流程
-│   └── enterprise_wallet_example.go  # 企业钱包示例
+│   ├── enterprise_wallet_example.go  # 企业钱包示例
+│   ├── graphql_example.go            # GraphQL 查询示例
+│   └── README_GRAPHQL.md             # GraphQL 示例文档
+├── docs/                  # 文档
+│   └── GRAPHQL_USAGE.md   # GraphQL 使用指南
 └── tests/                 # 测试
     ├── unit/              # 单元测试
     └── integration/       # 集成测试
@@ -228,6 +227,19 @@ go run examples/enterprise_wallet_example.go
 
 详细文档请参考：[企业钱包集成指南](./ENTERPRISE_WALLET.md)
 
+### GraphQL 查询
+
+```bash
+go run examples/graphql_example.go
+```
+
+演示 The Graph 子图数据查询：
+- 查询付款账户授权记录
+- 查询交易详细信息
+- 查询账户代币余额
+
+详细文档请参考：[GraphQL 使用指南](./docs/GRAPHQL_USAGE.md) | [GraphQL 示例文档](./examples/README_GRAPHQL.md)
+
 ## 🛠️ 主要组件
 
 ### Protocol Kit (`protocol/`)
@@ -239,6 +251,14 @@ go run examples/enterprise_wallet_example.go
 - **Safe Transaction Service** - 官方 API 集成
 - **交易管理** - 提案、确认、查询交易
 - **Safe 信息** - 获取配置、所有者、历史记录
+
+### GraphQL Kit (`graphql/`)
+- **The Graph 子图查询** - 链上数据索引查询
+- **授权记录** - 查询 ERC20 授权关系
+- **交易信息** - 查询交易 Gas、状态等详情
+- **账户余额** - 查询 Payment/Collection 账户余额
+
+详细使用指南请参考 [`graphql/README.md`](./graphql/README.md)
 
 ### Utils (`protocol/utils/`)
 - **Safe 部署** - 钱包创建和初始化工具
@@ -266,6 +286,7 @@ RUN_INTEGRATION_TESTS=true go test ./tests/integration
 - **[多签钱包工作流程](./MULTISIG_WORKFLOW.md)** - 完整的创建和管理指南
 - **[SDK ConfirmTransaction 使用指南](./SDK_CONFIRM_TRANSACTION_EXAMPLE.md)** - 高级多签确认方法详解
 - **[企业钱包集成指南](./ENTERPRISE_WALLET.md)** - 企业钱包合约集成文档
+- **[GraphQL 使用指南](./docs/GRAPHQL_USAGE.md)** - The Graph 子图查询使用说明
 - **[Utils 工具包文档](./protocol/utils/README.md)** - Safe 部署工具使用说明
 - **[贡献指南](./CONTRIBUTING.md)** - 如何参与项目开发
 

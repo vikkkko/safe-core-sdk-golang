@@ -2342,7 +2342,7 @@ func confirmSafeTransactionSDK(ctx *ExampleContext) {
 		SafeAddress: safeAddress,
 		RpcURL:      ctx.RPCURL,
 		ChainID:     ctx.ChainID.Int64(),
-		PrivateKey:  cleanPrivateKey,
+		PrivateKey:  ctx.PrivateKeyHex,
 	})
 	if err != nil {
 		log.Printf("创建Safe客户端失败: %v", err)
