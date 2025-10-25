@@ -116,6 +116,11 @@ func (c *Client) Query(ctx context.Context, query string, variables map[string]i
 // Returns:
 //   - List of allowances showing which addresses have granted approvals to this payment account
 func (c *Client) GetPaymentAllowances(ctx context.Context, paymentAccount string) ([]PaymentAllowance, error) {
+	accountID := normalizeAddress(paymentAccount)
+	if accountID == "" {
+		return nil, fmt.Errorf("invalid payment account address: %s", paymentAccount)
+	}
+
 	query := `
 		query GetPaymentAllowances($paymentAccount: String!) {
 			paymentAllowances(where: {paymentAccount: $paymentAccount}) {
@@ -127,7 +132,7 @@ func (c *Client) GetPaymentAllowances(ctx context.Context, paymentAccount string
 	`
 
 	variables := map[string]interface{}{
-		"paymentAccount": paymentAccount,
+		"paymentAccount": accountID,
 	}
 
 	respBody, err := c.Query(ctx, query, variables)
@@ -141,6 +146,46 @@ func (c *Client) GetPaymentAllowances(ctx context.Context, paymentAccount string
 	}
 
 	return response.Data.PaymentAllowances, nil
+}
+
+// GetPaymentApprovals queries approvals granted by a payment account
+func (c *Client) GetPaymentApprovals(ctx context.Context, account string) ([]PaymentApproval, error) {
+	accountID := normalizeAddress(account)
+	if accountID == "" {
+		return nil, fmt.Errorf("invalid payment account address: %s", account)
+	}
+
+	query := `
+		query GetPaymentApprovals($account: String!) {
+			paymentApprovals(
+				where: {account: $account}
+				orderBy: timestamp
+				orderDirection: desc
+			) {
+				token
+				spender
+				amount
+				timestamp
+				txHash
+			}
+		}
+	`
+
+	variables := map[string]interface{}{
+		"account": accountID,
+	}
+
+	respBody, err := c.Query(ctx, query, variables)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query payment approvals: %w", err)
+	}
+
+	var response PaymentApprovalsResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal payment approvals response: %w", err)
+	}
+
+	return response.Data.PaymentApprovals, nil
 }
 
 // GetTransactionInfo queries a transaction by its hash
@@ -269,6 +314,24 @@ func (c *Client) GetCollectionAccounts(ctx context.Context, accountIDs []string)
 	return response.Data.CollectionAccounts, nil
 }
 
+// GetPaymentAuthorizations retrieves both allowances and approvals for a payment account.
+func (c *Client) GetPaymentAuthorizations(ctx context.Context, account string) (*PaymentAuthorizations, error) {
+	allowances, err := c.GetPaymentAllowances(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	approvals, err := c.GetPaymentApprovals(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PaymentAuthorizations{
+		Allowances: allowances,
+		Approvals:  approvals,
+	}, nil
+}
+
 // Close releases any resources held by the client.
 func (c *Client) Close() {
 	c.ethClientMu.Lock()
@@ -341,4 +404,12 @@ func normalizeAddresses(addresses []string) []string {
 		normalized = append(normalized, lower)
 	}
 	return normalized
+}
+
+func normalizeAddress(address string) string {
+	normalized := normalizeAddresses([]string{address})
+	if len(normalized) == 0 {
+		return ""
+	}
+	return normalized[0]
 }

@@ -437,7 +437,8 @@ func showMenu() {
 	fmt.Println("  24. Show method selectors")
 	fmt.Println("\nSafe Transaction Operations:")
 	fmt.Println("  25. Payment Account Transfer (Propose transaction)")
-	fmt.Println("  26. Confirm Safe transaction (using SDK ConfirmTransaction)")
+	fmt.Println("  26. Payment Account Approve (Propose transaction)")
+	fmt.Println("  27. Confirm Safe transaction (using SDK ConfirmTransaction)")
 	fmt.Println("  0.  Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -539,6 +540,8 @@ func runExample(ctx *ExampleContext, choice string) {
 	case "25":
 		paymentAccountTransfer(ctx)
 	case "26":
+		paymentAccountApprove(ctx)
+	case "27":
 		confirmSafeTransactionSDK(ctx)
 	default:
 		fmt.Println("Invalid choice.")
@@ -2133,6 +2136,202 @@ func paymentAccountTransfer(ctx *ExampleContext) {
 		To:    paymentAccountAddr.Hex(),
 		Value: "0",
 		Data:  "0x" + hex.EncodeToString(transferData),
+		Nonce: &currentNonce,
+	}
+
+	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
+	if err != nil {
+		log.Printf("创建交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// Get transaction hash from Safe contract
+	fmt.Printf("🔐 获取Safe交易哈希...")
+	value := new(big.Int)
+	value.SetString(transaction.Data.Value, 10)
+
+	safeTxGas := new(big.Int)
+	safeTxGas.SetString(transaction.Data.SafeTxGas, 10)
+
+	baseGas := new(big.Int)
+	baseGas.SetString(transaction.Data.BaseGas, 10)
+
+	gasPrice := new(big.Int)
+	gasPrice.SetString(transaction.Data.GasPrice, 10)
+
+	txHashBytes, err := safeClient.GetTransactionHash(
+		context.Background(),
+		common.HexToAddress(transaction.Data.To),
+		value,
+		common.FromHex(transaction.Data.Data),
+		uint8(transaction.Data.Operation),
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		common.HexToAddress(transaction.Data.GasToken),
+		common.HexToAddress(transaction.Data.RefundReceiver),
+		new(big.Int).SetUint64(transaction.Data.Nonce),
+	)
+	if err != nil {
+		log.Printf("获取交易哈希失败: %v", err)
+		return
+	}
+	txHash := txHashBytes[:]
+	safeTxHash := hex.EncodeToString(txHash)
+	fmt.Printf(" ✅\n   交易哈希: 0x%s\n", safeTxHash)
+
+	ownerKeyHex := os.Getenv("OWNER_PRIVATE_KEY")
+	if ownerKeyHex == "" {
+		log.Printf("Error: OWNER_PRIVATE_KEY not set in .env")
+		return
+	}
+
+	ownerPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix(ownerKeyHex, "0x"))
+	if err != nil {
+		log.Printf("解析 OWNER_PRIVATE_KEY 失败: %v", err)
+		return
+	}
+	ownerAddress := crypto.PubkeyToAddress(ownerPrivateKey.PublicKey)
+
+	// Sign transaction
+	fmt.Printf("\n✍️  签名交易...")
+	signature, err := utils.SignMessage(txHash, ownerPrivateKey)
+	if err != nil {
+		log.Printf("签名交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n   签名者: %s\n", ownerAddress.Hex())
+
+	// Submit to Safe service
+	fmt.Printf("\n📤 提交交易到Safe服务...")
+	proposal := api.ProposeTransactionProps{
+		SafeAddress:             safeAddress.Hex(),
+		SafeTxHash:              "0x" + safeTxHash,
+		To:                      transaction.Data.To,
+		Value:                   transaction.Data.Value,
+		Data:                    transaction.Data.Data,
+		Operation:               int(transaction.Data.Operation),
+		GasToken:                transaction.Data.GasToken,
+		SafeTxGas:               0,
+		BaseGas:                 0,
+		GasPrice:                transaction.Data.GasPrice,
+		RefundReceiver:          transaction.Data.RefundReceiver,
+		Nonce:                   int64(transaction.Data.Nonce),
+		Sender:                  ownerAddress.Hex(),
+		Signature:               "0x" + hex.EncodeToString(signature),
+		ContractTransactionHash: "0x" + safeTxHash,
+	}
+
+	_, err = apiClient.ProposeTransaction(context.Background(), proposal)
+	if err != nil {
+		log.Printf("提交失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+}
+
+// paymentAccountApprove creates and proposes a PaymentAccount approve transaction
+// This demonstrates calling PaymentAccount.approve() through Safe multisig
+func paymentAccountApprove(ctx *ExampleContext) {
+	fmt.Println("=== Payment Account Approve (Propose Transaction) ===")
+
+	// Get PaymentAccount address (controlled by Safe)
+	paymentAccountAddr := promptAddress("Payment Account address", "")
+
+	// Get Safe address that controls this PaymentAccount
+	safeAddress := promptAddress("Safe multisig address (controller)", "")
+	if safeAddress.Hex() == "0x0000000000000000000000000000000000000000" {
+		log.Printf("Error: Safe address is required")
+		return
+	}
+
+	// Get approve parameters
+	fmt.Println("\n=== Approve Parameters ===")
+	tokenAddr := promptAddress("Token address (cannot be 0x0)", "0xAD2B0439ed98F50eDEB0e04F064d492bAFDAd73B")
+	if tokenAddr.Hex() == "0x0000000000000000000000000000000000000000" {
+		log.Printf("Error: Token address cannot be 0x0 for approve")
+		return
+	}
+	spenderAddr := promptAddress("Spender address", "0xeB7E951F2D1A38188762dF12E0703aE16F76Ab73")
+	amountStr := prompt("Amount to approve (in wei)")
+
+	amount := new(big.Int)
+	amount, ok := amount.SetString(amountStr, 10)
+	if !ok {
+		log.Printf("Error: Invalid amount")
+		return
+	}
+
+	// Generate PaymentAccount.approve() calldata
+	approveData, err := utils.PaymentAccountApproveData(tokenAddr, spenderAddr, amount)
+	if err != nil {
+		log.Printf("Error generating approve calldata: %v", err)
+		return
+	}
+
+	fmt.Printf("\n=== Transaction Details ===\n")
+	fmt.Printf("Target: %s (PaymentAccount)\n", paymentAccountAddr.Hex())
+	fmt.Printf("Token: %s\n", tokenAddr.Hex())
+	fmt.Printf("Spender: %s\n", spenderAddr.Hex())
+	fmt.Printf("Amount: %s wei\n", amount.String())
+	fmt.Printf("Calldata: 0x%x\n", approveData)
+	fmt.Printf("Calldata length: %d bytes\n", len(approveData))
+	fmt.Printf("Will be called via Safe: %s\n\n", safeAddress.Hex())
+
+	if !confirmSend() {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// Create Safe client and API client
+	fmt.Printf("\n🔧 创建Safe客户端...")
+	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
+		SafeAddress: safeAddress.Hex(),
+		RpcURL:      ctx.RPCURL,
+		ChainID:     ctx.ChainID.Int64(),
+		PrivateKey:  ctx.PrivateKeyHex,
+	})
+	if err != nil {
+		log.Printf("创建Safe客户端失败: %v", err)
+		return
+	}
+
+	apiConfig := api.SafeApiKitConfig{
+		ChainID: ctx.ChainID.Int64(),
+		ApiKey:  ctx.SafeAPIKey,
+	}
+	if ctx.SafeAPIURL != "" {
+		apiConfig.TxServiceURL = ctx.SafeAPIURL
+	}
+	apiClient, err := api.NewSafeApiKit(apiConfig)
+	if err != nil {
+		log.Printf("创建API客户端失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// Get Safe info
+	fmt.Printf("📊 获取Safe信息...")
+	safeInfo, err := apiClient.GetSafeInfo(context.Background(), safeAddress.Hex())
+	if err != nil {
+		log.Printf("获取Safe信息失败: %v", err)
+		return
+	}
+
+	currentNonce, err := strconv.ParseUint(safeInfo.Nonce, 10, 64)
+	if err != nil {
+		log.Printf("解析随机数失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅ (阈值: %d/%d, 随机数: %d)\n", safeInfo.Threshold, len(safeInfo.Owners), currentNonce)
+
+	// Create Safe transaction
+	fmt.Printf("📋 创建Safe交易...")
+	txData := safetypes.SafeTransactionDataPartial{
+		To:    paymentAccountAddr.Hex(),
+		Value: "0",
+		Data:  "0x" + hex.EncodeToString(approveData),
 		Nonce: &currentNonce,
 	}
 

@@ -52,6 +52,22 @@ type PaymentAllowancesResponse struct {
 	} `json:"data"`
 }
 
+// PaymentApproval represents an approval event for a payment account
+type PaymentApproval struct {
+	Token     string `json:"token"`     // Token contract address
+	Spender   string `json:"spender"`   // Spender address
+	Amount    BigInt `json:"amount"`    // Approved amount
+	Timestamp string `json:"timestamp"` // Timestamp of the approval
+	TxHash    string `json:"txHash"`    // Transaction hash
+}
+
+// PaymentApprovalsResponse represents GraphQL response for payment approvals
+type PaymentApprovalsResponse struct {
+	Data struct {
+		PaymentApprovals []PaymentApproval `json:"paymentApprovals"`
+	} `json:"data"`
+}
+
 // TransactionInfo represents detailed info of a transaction returned by the graph
 type TransactionInfo struct {
 	ID             string `json:"id"`             // Transaction hash
@@ -109,6 +125,12 @@ type CollectionAccountsResponse struct {
 	Data struct {
 		CollectionAccounts []CollectionAccount `json:"collectionAccounts"`
 	} `json:"data"`
+}
+
+// PaymentAuthorizations aggregates allowance and approval data
+type PaymentAuthorizations struct {
+	Allowances []PaymentAllowance `json:"allowances"`
+	Approvals  []PaymentApproval  `json:"approvals"`
 }
 
 // GraphQLRequest represents a GraphQL request body

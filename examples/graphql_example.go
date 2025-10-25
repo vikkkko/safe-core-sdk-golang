@@ -62,9 +62,11 @@ func showMenu() {
 	fmt.Println("===============================================")
 	fmt.Println("\nAvailable Queries:")
 	fmt.Println("  1. Query payment allowances (查询付款账户授权记录)")
-	fmt.Println("  2. Query transaction info by hash (通过交易哈希获取详情)")
-	fmt.Println("  3. Query payment account token balances (查询付款账户代币余额)")
-	fmt.Println("  4. Query collection account token balances (查询收款账户代币余额)")
+	fmt.Println("  2. Query payment approvals (查询付款账户授权历史)")
+	fmt.Println("  3. Query allowances + approvals (查询授权概览)")
+	fmt.Println("  4. Query transaction info by hash (通过交易哈希获取详情)")
+	fmt.Println("  5. Query payment account token balances (查询付款账户代币余额)")
+	fmt.Println("  6. Query collection account token balances (查询收款账户代币余额)")
 	fmt.Println("  0. Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -87,10 +89,14 @@ func runQuery(client *graphql.Client, choice string) {
 	case "1":
 		queryPaymentAllowances(client)
 	case "2":
-		queryTransactionInfo(client)
+		queryPaymentApprovals(client)
 	case "3":
-		queryPaymentAccountBalances(client)
+		queryPaymentAuthorizations(client)
 	case "4":
+		queryTransactionInfo(client)
+	case "5":
+		queryPaymentAccountBalances(client)
+	case "6":
 		queryCollectionAccountBalances(client)
 	default:
 		fmt.Println("Invalid choice.")
@@ -117,10 +123,7 @@ func queryPaymentAllowances(client *graphql.Client) {
 	fmt.Printf("\nQuerying allowances for payment account: %s\n", paymentAccount.Hex())
 	ctx := context.Background()
 
-	// GraphQL requires lowercase addresses
-	paymentAccountLower := strings.ToLower(paymentAccount.Hex())
-
-	allowances, err := client.GetPaymentAllowances(ctx, paymentAccountLower)
+	allowances, err := client.GetPaymentAllowances(ctx, paymentAccount.Hex())
 	if err != nil {
 		log.Printf("Failed to query payment allowances: %v", err)
 		return
@@ -196,6 +199,52 @@ func queryCollectionAccountBalances(client *graphql.Client) {
 	}
 
 	printCollectionAccountBalancesResult(accounts)
+}
+
+func queryPaymentApprovals(client *graphql.Client) {
+	fmt.Println("=== Query Payment Approvals (付款账户授权记录) ===")
+	fmt.Println("查询指定付款账户向哪些地址授权过")
+	fmt.Println()
+
+	paymentAccount := prompt("Payment account address (付款账户地址)")
+	if !common.IsHexAddress(paymentAccount) {
+		log.Printf("Error: Invalid payment account address")
+		return
+	}
+
+	ctx := context.Background()
+	approvals, err := client.GetPaymentApprovals(ctx, paymentAccount)
+	if err != nil {
+		log.Printf("Failed to query payment approvals: %v", err)
+		return
+	}
+
+	printPaymentApprovals(approvals)
+}
+
+func queryPaymentAuthorizations(client *graphql.Client) {
+	fmt.Println("=== Query Payment Authorizations (授权概览) ===")
+	fmt.Println("同时查询付款账户的当前授权额度与历史授权记录")
+	fmt.Println()
+
+	paymentAccount := prompt("Payment account address (付款账户地址)")
+	if !common.IsHexAddress(paymentAccount) {
+		log.Printf("Error: Invalid payment account address")
+		return
+	}
+
+	ctx := context.Background()
+	auth, err := client.GetPaymentAuthorizations(ctx, paymentAccount)
+	if err != nil {
+		log.Printf("Failed to query payment authorizations: %v", err)
+		return
+	}
+
+	fmt.Println("\n--- Current Allowances ---")
+	printPaymentAllowances(auth.Allowances)
+
+	fmt.Println("\n--- Approval History ---")
+	printPaymentApprovals(auth.Approvals)
 }
 
 func queryTransactionInfo(client *graphql.Client) {
@@ -356,4 +405,46 @@ func formatUnixTimestamp(ts string) string {
 		return ts
 	}
 	return time.Unix(value, 0).UTC().Format("2006-01-02 15:04:05 MST")
+}
+
+func printPaymentApprovals(approvals []graphql.PaymentApproval) {
+	if len(approvals) == 0 {
+		fmt.Println("No approval history found.")
+		return
+	}
+
+	fmt.Println("Approval History:")
+	fmt.Println("───────────────────────────────────────────────────────────────────────────────")
+	fmt.Printf("%-5s %-42s %-42s %-32s %-20s %s\n", "No.", "Token", "Spender", "Amount", "Timestamp", "TxHash")
+	fmt.Println("───────────────────────────────────────────────────────────────────────────────")
+	for i, approval := range approvals {
+		fmt.Printf("%-5d %-42s %-42s %-32s %-20s %s\n",
+			i+1,
+			approval.Token,
+			approval.Spender,
+			approval.Amount.String(),
+			formatUnixTimestamp(approval.Timestamp),
+			approval.TxHash,
+		)
+	}
+}
+
+func printPaymentAllowances(allowances []graphql.PaymentAllowance) {
+	if len(allowances) == 0 {
+		fmt.Println("No allowances found.")
+		return
+	}
+
+	fmt.Println("Allowances:")
+	fmt.Println("───────────────────────────────────────────────────────────────────────────────")
+	fmt.Printf("%-5s %-42s %-42s %s\n", "No.", "Token", "Owner", "Amount")
+	fmt.Println("───────────────────────────────────────────────────────────────────────────────")
+	for i, allowance := range allowances {
+		fmt.Printf("%-5d %-42s %-42s %s\n",
+			i+1,
+			allowance.Token,
+			allowance.Owner,
+			allowance.Amount.String(),
+		)
+	}
 }
