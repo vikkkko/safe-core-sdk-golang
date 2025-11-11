@@ -28,10 +28,11 @@ import (
 )
 
 const (
-	FactoryAddress       = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
-	ImplementationAddr   = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
-	SafeFactoryAddress   = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
-	SafeSingletonAddress = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
+	FactoryAddress              = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
+	ImplementationAddr          = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
+	SafeFactoryAddress          = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
+	SafeSingletonAddress        = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
+	GuardFactoryAddress         = "0xYourGuardFactoryAddressHere" // TODO: Replace with actual deployed address
 )
 
 // Context holds all necessary data for examples
@@ -439,6 +440,11 @@ func showMenu() {
 	fmt.Println("  25. Payment Account Transfer (Propose transaction)")
 	fmt.Println("  26. Payment Account Approve (Propose transaction)")
 	fmt.Println("  27. Confirm Safe transaction (using SDK ConfirmTransaction)")
+	fmt.Println("\nGuard Factory Operations:")
+	fmt.Println("  28. Get Guard Factory Implementation")
+	fmt.Println("  29. Predict Guard Address")
+	fmt.Println("  30. Get Existing Guard")
+	fmt.Println("  31. Create New Guard")
 	fmt.Println("  0.  Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -543,6 +549,14 @@ func runExample(ctx *ExampleContext, choice string) {
 		paymentAccountApprove(ctx)
 	case "27":
 		confirmSafeTransactionSDK(ctx)
+	case "28":
+		getGuardFactoryImplementation(ctx)
+	case "29":
+		predictGuardAddress(ctx)
+	case "30":
+		getExistingGuard(ctx)
+	case "31":
+		createNewGuard(ctx)
 	default:
 		fmt.Println("Invalid choice.")
 	}
@@ -1077,6 +1091,9 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 		return
 	}
 
+	log.Printf("ctx.RPCURL: %s", ctx.RPCURL)
+	log.Printf("SAFE_API_BASE_URL: %s", ctx.SafeAPIURL)
+
 	// 创建Safe客户端和API客户端
 	fmt.Printf("\n🔧 创建Safe客户端...")
 	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
@@ -1096,10 +1113,8 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 
 	apiConfig := api.SafeApiKitConfig{
 		ChainID: ctx.ChainID.Int64(),
-		ApiKey:  ctx.SafeAPIKey,
-	}
-	if ctx.SafeAPIURL != "" {
-		apiConfig.TxServiceURL = ctx.SafeAPIURL
+		TxServiceURL: ctx.SafeAPIURL,
+		// ApiKey:  ctx.SafeAPIKey,
 	}
 	apiClient, err := api.NewSafeApiKit(apiConfig)
 	if err != nil {
@@ -2761,4 +2776,192 @@ func buildSafeTransactionFromDetails(details *api.SafeMultisigTransactionRespons
 	}
 
 	return tx, nil
+}
+
+// ============= Guard Factory Operations =============
+
+func getGuardFactoryImplementation(ctx *ExampleContext) {
+	fmt.Println("=== Get Guard Factory Implementation ===")
+
+	// Prompt for factory address
+	factoryAddr := promptAddress("Guard Factory address", GuardFactoryAddress)
+	fmt.Printf("\nUsing Guard Factory: %s\n", factoryAddr.Hex())
+
+	// Create factory contract instance
+	guardFactory, err := utils.NewSimpleUniversalGuardFactoryContract(factoryAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Failed to create Guard Factory instance: %v", err)
+		return
+	}
+
+	// Get implementation address
+	fmt.Printf("\nQuerying implementation address...")
+	implAddr, err := guardFactory.GetImplementation(&bind.CallOpts{})
+	if err != nil {
+		log.Printf("Failed to get implementation: %v", err)
+		return
+	}
+
+	fmt.Printf(" ✅\n")
+	fmt.Printf("\nImplementation Address: %s\n", implAddr.Hex())
+}
+
+func predictGuardAddress(ctx *ExampleContext) {
+	fmt.Println("=== Predict Guard Address ===")
+
+	// Prompt for factory address
+	factoryAddr := promptAddress("Guard Factory address", GuardFactoryAddress)
+	fmt.Printf("\nUsing Guard Factory: %s\n", factoryAddr.Hex())
+
+	// Prompt for required signer
+	requiredSigner := promptAddress("Required signer address", "")
+	if requiredSigner == (common.Address{}) {
+		log.Printf("Error: Required signer address is required")
+		return
+	}
+
+	// Create factory contract instance
+	guardFactory, err := utils.NewSimpleUniversalGuardFactoryContract(factoryAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Failed to create Guard Factory instance: %v", err)
+		return
+	}
+
+	// Predict guard address
+	fmt.Printf("\nPredicting guard address for signer: %s...", requiredSigner.Hex())
+	predictedAddr, err := guardFactory.PredictGuardAddress(&bind.CallOpts{}, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to predict guard address: %v", err)
+		return
+	}
+
+	fmt.Printf(" ✅\n")
+	fmt.Printf("\nPredicted Guard Address: %s\n", predictedAddr.Hex())
+	fmt.Printf("\nNote: This is the deterministic address where the guard will be deployed.\n")
+	fmt.Printf("The guard contract is not yet deployed at this address.\n")
+}
+
+func getExistingGuard(ctx *ExampleContext) {
+	fmt.Println("=== Get Existing Guard ===")
+
+	// Prompt for factory address
+	factoryAddr := promptAddress("Guard Factory address", GuardFactoryAddress)
+	fmt.Printf("\nUsing Guard Factory: %s\n", factoryAddr.Hex())
+
+	// Prompt for required signer
+	requiredSigner := promptAddress("Required signer address", "")
+	if requiredSigner == (common.Address{}) {
+		log.Printf("Error: Required signer address is required")
+		return
+	}
+
+	// Create factory contract instance
+	guardFactory, err := utils.NewSimpleUniversalGuardFactoryContract(factoryAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Failed to create Guard Factory instance: %v", err)
+		return
+	}
+
+	// Get guard address
+	fmt.Printf("\nQuerying guard for signer: %s...", requiredSigner.Hex())
+	guardAddr, err := guardFactory.GetGuard(&bind.CallOpts{}, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to get guard: %v", err)
+		return
+	}
+
+	fmt.Printf(" ✅\n")
+	if guardAddr == (common.Address{}) {
+		fmt.Printf("\n⚠️  No guard exists for this signer\n")
+		fmt.Printf("You can create one using option 31\n")
+	} else {
+		fmt.Printf("\nGuard Address: %s\n", guardAddr.Hex())
+		fmt.Printf("Required Signer: %s\n", requiredSigner.Hex())
+	}
+}
+
+func createNewGuard(ctx *ExampleContext) {
+	fmt.Println("=== Create New Guard ===")
+
+	// Prompt for factory address
+	factoryAddr := promptAddress("Guard Factory address", GuardFactoryAddress)
+	fmt.Printf("\nUsing Guard Factory: %s\n", factoryAddr.Hex())
+
+	// Prompt for required signer
+	requiredSigner := promptAddress("Required signer address", "")
+	if requiredSigner == (common.Address{}) {
+		log.Printf("Error: Required signer address is required")
+		return
+	}
+
+	// Create factory contract instance
+	guardFactory, err := utils.NewSimpleUniversalGuardFactoryContract(factoryAddr, ctx.Client)
+	if err != nil {
+		log.Printf("Failed to create Guard Factory instance: %v", err)
+		return
+	}
+
+	// Check if guard already exists
+	fmt.Printf("\nChecking if guard already exists...")
+	existingGuard, err := guardFactory.GetGuard(&bind.CallOpts{}, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to check existing guard: %v", err)
+		return
+	}
+
+	if existingGuard != (common.Address{}) {
+		fmt.Printf("\n\n⚠️  Guard already exists!\n")
+		fmt.Printf("Guard Address: %s\n", existingGuard.Hex())
+		fmt.Printf("Required Signer: %s\n", requiredSigner.Hex())
+		fmt.Printf("\nThe factory will return the existing guard address if you proceed.\n")
+	} else {
+		fmt.Printf(" ✅ No existing guard found\n")
+	}
+
+	// Predict the guard address
+	predictedAddr, err := guardFactory.PredictGuardAddress(&bind.CallOpts{}, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to predict guard address: %v", err)
+		return
+	}
+	fmt.Printf("Guard will be deployed at: %s\n", predictedAddr.Hex())
+
+	// Confirm transaction
+	if !confirmSend() {
+		fmt.Println("Transaction cancelled")
+		return
+	}
+
+	// Create transaction auth
+	auth := getAuth(ctx, &factoryAddr, nil)
+
+	// Create guard
+	fmt.Printf("\nCreating guard...\n")
+	tx, err := guardFactory.CreateGuard(auth, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to create guard: %v", err)
+		return
+	}
+
+	fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	waitForTransaction(ctx, tx)
+
+	// Verify guard was created
+	fmt.Printf("\nVerifying guard creation...")
+	createdGuard, err := guardFactory.GetGuard(&bind.CallOpts{}, requiredSigner)
+	if err != nil {
+		log.Printf("Failed to verify guard: %v", err)
+		return
+	}
+
+	if createdGuard != (common.Address{}) {
+		fmt.Printf(" ✅\n")
+		fmt.Printf("\nGuard successfully created!\n")
+		fmt.Printf("Guard Address: %s\n", createdGuard.Hex())
+		fmt.Printf("Required Signer: %s\n", requiredSigner.Hex())
+		fmt.Printf("\nThis guard can now be set on any Safe wallet.\n")
+		fmt.Printf("All transactions from Safes using this guard will require a signature from: %s\n", requiredSigner.Hex())
+	} else {
+		fmt.Printf("\n⚠️  Guard creation verification failed\n")
+	}
 }

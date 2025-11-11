@@ -20,3 +20,8 @@ var Safe []byte
 
 //go:embed SafeProxyFactory_full.json
 var SafeProxyFactory []byte
+
+// Guard ABI definitions embedded at compile time.
+
+//go:embed SimpleUniversalGuardFactory.json
+var SimpleUniversalGuardFactory []byte

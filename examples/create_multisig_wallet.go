@@ -49,6 +49,7 @@ func main() {
 	}
 
 	apiKey := os.Getenv("SAFE_API_KEY")
+	txServiceURL := os.Getenv("SAFE_API_URL")
 	deployerPrivateKey := os.Getenv("DEPLOYER_PRIVATE_KEY")
 	if deployerPrivateKey == "" {
 		log.Fatal("DEPLOYER_PRIVATE_KEY not set in .env")
@@ -66,15 +67,15 @@ func main() {
 		// 默认配置
 		owners = []string{
 			"0x9C126aa4Eb6D110D646139969774F2c5b64dD279",
-			"0xeB7E951F2D1A38188762dF12E0703aE16F76ab73",
-			"0x74f4EFFb0B538BAec703346b03B6d9292f53A4CD",
+			// "0xeB7E951F2D1A38188762dF12E0703aE16F76ab73",
+			// "0x74f4EFFb0B538BAec703346b03B6d9292f53A4CD",
 		}
 	}
 
 	thresholdStr := os.Getenv("SAFE_THRESHOLD")
 	threshold, err := strconv.Atoi(thresholdStr)
 	if err != nil || threshold == 0 {
-		threshold = 2 // 默认需要2个签名
+		threshold = 1 // 默认需要2个签名
 	}
 
 	// 运行模式
@@ -220,7 +221,7 @@ func main() {
 
 		fmt.Printf("🔍 Verifying deployment...")
 		// 使用实际地址进行验证
-		err = verifySafeDeployment(ctx, client, actualAddress, owners, threshold, chainID, apiKey)
+		err = verifySafeDeployment(ctx, client, actualAddress, owners, threshold, chainID, txServiceURL, apiKey)
 		if err != nil {
 			fmt.Printf(" ❌\n❌ Verification failed: %v\n", err)
 			return
@@ -408,7 +409,7 @@ func deploySafeWallet(ctx context.Context, client *ethclient.Client, privateKey 
 }
 
 // verifySafeDeployment verifies that the Safe was deployed correctly
-func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAddress common.Address, expectedOwners []string, expectedThreshold int, chainID int64, apiKey string) error {
+func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAddress common.Address, expectedOwners []string, expectedThreshold int, chainID int64, txServiceURL string, apiKey string) error {
 
 	// Check if contract exists
 	code, err := client.CodeAt(ctx, safeAddress, nil)
@@ -430,6 +431,7 @@ func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAdd
 	// Create API client
 	apiClient, err := api.NewSafeApiKit(api.SafeApiKitConfig{
 		ChainID: chainID,
+		TxServiceURL: txServiceURL,
 		ApiKey:  apiKey,
 	})
 	if err != nil {
