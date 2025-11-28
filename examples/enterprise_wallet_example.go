@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	FactoryAddress              = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
-	ImplementationAddr          = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
-	SafeFactoryAddress          = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
-	SafeSingletonAddress        = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
-	GuardFactoryAddress         = "0xYourGuardFactoryAddressHere" // TODO: Replace with actual deployed address
+	FactoryAddress       = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
+	ImplementationAddr   = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
+	SafeFactoryAddress   = "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
+	SafeSingletonAddress = "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
+	GuardFactoryAddress  = "0xYourGuardFactoryAddressHere" // TODO: Replace with actual deployed address
 )
 
 // Context holds all necessary data for examples
@@ -748,11 +748,13 @@ func createPaymentAccount(ctx *ExampleContext) {
 
 	// 创建Safe交易
 	fmt.Printf("📋 创建Safe交易...")
+	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
-		To:    walletAddr.Hex(),
-		Value: "0",
-		Data:  "0x" + hex.EncodeToString(data),
-		Nonce: &currentNonce,
+		To:      walletAddr.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(data),
+		Nonce:   &currentNonce,
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
@@ -778,6 +780,7 @@ func createPaymentAccount(ctx *ExampleContext) {
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		context.Background(),
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),
@@ -809,6 +812,7 @@ func createPaymentAccount(ctx *ExampleContext) {
 	// 提交到Safe服务
 	fmt.Printf("\n📤 提交交易到Safe服务...")
 	proposal := api.ProposeTransactionProps{
+		Channel:                 func() *int64 { v := int64(transaction.Data.Channel); return &v }(),
 		SafeAddress:             safeAddress,
 		SafeTxHash:              "0x" + safeTxHash,
 		To:                      transaction.Data.To,
@@ -1112,7 +1116,7 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 	}
 
 	apiConfig := api.SafeApiKitConfig{
-		ChainID: ctx.ChainID.Int64(),
+		ChainID:      ctx.ChainID.Int64(),
 		TxServiceURL: ctx.SafeAPIURL,
 		// ApiKey:  ctx.SafeAPIKey,
 	}
@@ -1140,11 +1144,13 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 
 	// 创建Safe交易
 	fmt.Printf("📋 创建Safe交易...")
+	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
-		To:    walletAddr.Hex(),
-		Value: "0",
-		Data:  "0x" + hex.EncodeToString(data),
-		Nonce: &currentNonce,
+		To:      walletAddr.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(data),
+		Nonce:   &currentNonce,
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
@@ -1170,6 +1176,7 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		context.Background(),
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),
@@ -1219,6 +1226,7 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 	// 提交到Safe服务
 	fmt.Printf("\n📤 提交交易到Safe服务...")
 	proposal := api.ProposeTransactionProps{
+		Channel:                 func() *int64 { v := int64(transaction.Data.Channel); return &v }(),
 		SafeAddress:             safeAddress,
 		SafeTxHash:              "0x" + safeTxHash,
 		To:                      transaction.Data.To,
@@ -2147,11 +2155,13 @@ func paymentAccountTransfer(ctx *ExampleContext) {
 
 	// Create Safe transaction
 	fmt.Printf("📋 创建Safe交易...")
+	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
-		To:    paymentAccountAddr.Hex(),
-		Value: "0",
-		Data:  "0x" + hex.EncodeToString(transferData),
-		Nonce: &currentNonce,
+		To:      paymentAccountAddr.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(transferData),
+		Nonce:   &currentNonce,
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
@@ -2177,6 +2187,7 @@ func paymentAccountTransfer(ctx *ExampleContext) {
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		context.Background(),
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),
@@ -2221,6 +2232,7 @@ func paymentAccountTransfer(ctx *ExampleContext) {
 	// Submit to Safe service
 	fmt.Printf("\n📤 提交交易到Safe服务...")
 	proposal := api.ProposeTransactionProps{
+		Channel:                 func() *int64 { v := int64(transaction.Data.Channel); return &v }(),
 		SafeAddress:             safeAddress.Hex(),
 		SafeTxHash:              "0x" + safeTxHash,
 		To:                      transaction.Data.To,
@@ -2343,11 +2355,13 @@ func paymentAccountApprove(ctx *ExampleContext) {
 
 	// Create Safe transaction
 	fmt.Printf("📋 创建Safe交易...")
+	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
-		To:    paymentAccountAddr.Hex(),
-		Value: "0",
-		Data:  "0x" + hex.EncodeToString(approveData),
-		Nonce: &currentNonce,
+		To:      paymentAccountAddr.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(approveData),
+		Nonce:   &currentNonce,
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
@@ -2373,6 +2387,7 @@ func paymentAccountApprove(ctx *ExampleContext) {
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		context.Background(),
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),
@@ -2417,6 +2432,7 @@ func paymentAccountApprove(ctx *ExampleContext) {
 	// Submit to Safe service
 	fmt.Printf("\n📤 提交交易到Safe服务...")
 	proposal := api.ProposeTransactionProps{
+		Channel:                 func() *int64 { v := int64(transaction.Data.Channel); return &v }(),
 		SafeAddress:             safeAddress.Hex(),
 		SafeTxHash:              "0x" + safeTxHash,
 		To:                      transaction.Data.To,

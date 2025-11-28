@@ -104,11 +104,13 @@ func main() {
 	}
 	fmt.Printf(" ✅\n")
 
+	channel := uint64(0)
 	txData := types.SafeTransactionDataPartial{
-		To:    usdtAddress,                             // USDC合约地址
-		Value: "0",                                     // ERC20转账无需ETH
-		Data:  "0x" + hex.EncodeToString(transferData), // ERC20转账调用数据
-		Nonce: &currentNonce,                           // 使用当前随机数
+		To:      usdtAddress,                             // USDC合约地址
+		Value:   "0",                                     // ERC20转账无需ETH
+		Data:    "0x" + hex.EncodeToString(transferData), // ERC20转账调用数据
+		Nonce:   &currentNonce,                           // 使用当前随机数
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(ctx, txData)
@@ -134,6 +136,7 @@ func main() {
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		ctx,
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),

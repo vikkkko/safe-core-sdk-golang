@@ -1,15 +1,20 @@
 package contracts
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	abiembed "github.com/vikkkko/safe-core-sdk-golang/abi"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
+	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 // SafeContract represents a Safe smart contract
@@ -157,6 +162,7 @@ func (sc *SafeContract) GetFallbackHandler(ctx context.Context) (common.Address,
 func (sc *SafeContract) ExecTransaction(
 	ctx context.Context,
 	opts *bind.TransactOpts,
+	channel uint64,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -175,6 +181,39 @@ func (sc *SafeContract) ExecTransaction(
 	copyOpts := *opts
 	if copyOpts.Context == nil {
 		copyOpts.Context = ctx
+	}
+
+	isMulti, err := sc.isMultichannel(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if isMulti {
+		binding, err := sc.multichannelBinding()
+		if err != nil {
+			return nil, err
+		}
+
+		tx, err := binding.Transact(
+			&copyOpts,
+			"execTransaction",
+			big.NewInt(int64(channel)),
+			to,
+			value,
+			data,
+			operation,
+			safeTxGas,
+			baseGas,
+			gasPrice,
+			gasToken,
+			refundReceiver,
+			signatures,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return tx, nil
 	}
 
 	safeBinding, err := utils.NewSafeContract(sc.address, sc.client)
@@ -204,6 +243,8 @@ func (sc *SafeContract) ExecTransaction(
 
 // GetTransactionHash calculates the transaction hash for signing
 func (sc *SafeContract) GetTransactionHash(
+	ctx context.Context,
+	channel uint64,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -215,13 +256,34 @@ func (sc *SafeContract) GetTransactionHash(
 	refundReceiver common.Address,
 	nonce *big.Int,
 ) ([32]byte, error) {
+	isMulti, err := sc.isMultichannel(ctx)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	if isMulti {
+		binding, err := sc.multichannelBinding()
+		if err != nil {
+			return [32]byte{}, err
+		}
+
+		var out []interface{}
+		err = binding.Call(&bind.CallOpts{Context: ctx}, &out, "getTransactionHash", big.NewInt(int64(channel)), to, value, data, operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce)
+		if err != nil {
+			return [32]byte{}, fmt.Errorf("failed to get transaction hash: %w", err)
+		}
+
+		hash := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+		return hash, nil
+	}
+
 	binding, err := NewSafeBinding(sc.address, sc.client)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("failed to create Safe binding: %w", err)
 	}
 
 	txHash, err := binding.GetTransactionHash(
-		&bind.CallOpts{},
+		&bind.CallOpts{Context: ctx},
 		to,
 		value,
 		data,
@@ -238,6 +300,35 @@ func (sc *SafeContract) GetTransactionHash(
 	}
 
 	return txHash, nil
+}
+
+// GetChannelNonce returns the nonce for a specific channel (channel 0 for legacy Safe)
+func (sc *SafeContract) GetChannelNonce(ctx context.Context, channel uint64) (*big.Int, error) {
+	isMulti, err := sc.isMultichannel(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isMulti {
+		if channel != 0 {
+			return nil, fmt.Errorf("legacy Safe does not support channel %d", channel)
+		}
+		return sc.GetNonce(ctx)
+	}
+
+	binding, err := sc.multichannelBinding()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []interface{}
+	err = binding.Call(&bind.CallOpts{Context: ctx}, &out, "channelNonces", big.NewInt(int64(channel)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get channel nonce: %w", err)
+	}
+
+	nonce := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	return nonce, nil
 }
 
 // GetMessageHash calculates the message hash for signing
@@ -291,4 +382,22 @@ func (sc *SafeContract) VERSION(ctx context.Context) (string, error) {
 	}
 
 	return version, nil
+}
+
+func (sc *SafeContract) isMultichannel(ctx context.Context) (bool, error) {
+	version, err := sc.VERSION(ctx)
+	if err != nil {
+		return false, err
+	}
+	return strings.HasPrefix(version, string(types.SafeVersion150Multichannel)), nil
+}
+
+func (sc *SafeContract) multichannelBinding() (*bind.BoundContract, error) {
+	parsed, err := abi.JSON(bytes.NewReader(abiembed.Safe))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Safe ABI: %w", err)
+	}
+
+	contract := bind.NewBoundContract(sc.address, parsed, sc.client, sc.client, sc.client)
+	return contract, nil
 }

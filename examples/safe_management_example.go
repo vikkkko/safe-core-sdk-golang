@@ -562,11 +562,13 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 
 	// Create Safe transaction
 	fmt.Printf("📋 创建Safe交易...")
+	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
-		To:    targetAddress.Hex(),
-		Value: "0",
-		Data:  "0x" + hex.EncodeToString(calldata),
-		Nonce: &currentNonce,
+		To:      targetAddress.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(calldata),
+		Nonce:   &currentNonce,
+		Channel: &channel,
 	}
 
 	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
@@ -592,6 +594,7 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 
 	txHashBytes, err := safeClient.GetTransactionHash(
 		context.Background(),
+		transaction.Data.Channel,
 		common.HexToAddress(transaction.Data.To),
 		value,
 		common.FromHex(transaction.Data.Data),

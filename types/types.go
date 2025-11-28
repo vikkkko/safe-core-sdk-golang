@@ -12,11 +12,13 @@ import (
 type SafeVersion string
 
 const (
-	SafeVersion141 SafeVersion = "1.4.1"
-	SafeVersion130 SafeVersion = "1.3.0"
-	SafeVersion120 SafeVersion = "1.2.0"
-	SafeVersion111 SafeVersion = "1.1.1"
-	SafeVersion100 SafeVersion = "1.0.0"
+	SafeVersion150             SafeVersion = "1.5.0"
+	SafeVersion150Multichannel SafeVersion = "1.5.0-multichannel.1"
+	SafeVersion141             SafeVersion = "1.4.1"
+	SafeVersion130             SafeVersion = "1.3.0"
+	SafeVersion120             SafeVersion = "1.2.0"
+	SafeVersion111             SafeVersion = "1.1.1"
+	SafeVersion100             SafeVersion = "1.0.0"
 )
 
 // OperationType represents the type of operation for a transaction
@@ -53,6 +55,7 @@ type SafeTransactionData struct {
 	Value          string        `json:"value"`          // Value in wei
 	Data           string        `json:"data"`           // Transaction data
 	Operation      OperationType `json:"operation"`      // Operation type
+	Channel        uint64        `json:"channel"`        // Nonce channel
 	SafeTxGas      string        `json:"safeTxGas"`      // Gas for Safe transaction
 	BaseGas        string        `json:"baseGas"`        // Base gas cost
 	GasPrice       string        `json:"gasPrice"`       // Gas price
@@ -67,6 +70,7 @@ type SafeTransactionDataPartial struct {
 	Value          string         `json:"value"`                    // Value in wei
 	Data           string         `json:"data"`                     // Transaction data
 	Operation      *OperationType `json:"operation,omitempty"`      // Operation type (optional)
+	Channel        *uint64        `json:"channel,omitempty"`        // Nonce channel (optional)
 	SafeTxGas      *string        `json:"safeTxGas,omitempty"`      // Gas for Safe transaction (optional)
 	BaseGas        *string        `json:"baseGas,omitempty"`        // Base gas cost (optional)
 	GasPrice       *string        `json:"gasPrice,omitempty"`       // Gas price (optional)

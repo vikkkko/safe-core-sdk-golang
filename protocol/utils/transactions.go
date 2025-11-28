@@ -18,6 +18,11 @@ func StandardizeSafeTransactionData(txData types.SafeTransactionDataPartial, cur
 		operation = *txData.Operation
 	}
 
+	channel := uint64(0)
+	if txData.Channel != nil {
+		channel = *txData.Channel
+	}
+
 	// Use provided nonce or current nonce
 	nonce := currentNonce
 	if txData.Nonce != nil {
@@ -55,6 +60,7 @@ func StandardizeSafeTransactionData(txData types.SafeTransactionDataPartial, cur
 		Value:          txData.Value,
 		Data:           txData.Data,
 		Operation:      operation,
+		Channel:        channel,
 		SafeTxGas:      safeTxGas,
 		BaseGas:        baseGas,
 		GasPrice:       gasPrice,

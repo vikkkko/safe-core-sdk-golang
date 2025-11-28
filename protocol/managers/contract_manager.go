@@ -79,6 +79,16 @@ func (cm *ContractManager) getSafeProxyFactoryAddress(version types.SafeVersion)
 		}
 	}
 
+	// Sepolia multichannel deployments
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0x72D89c510AFBeC255b81482C8DCC720FC8743175"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
 	// For other chains, return zero address as placeholder
 	return common.Address{}, fmt.Errorf("unsupported chain ID: %d", chainID)
 }
@@ -94,6 +104,15 @@ func (cm *ContractManager) getMultiSendAddress(version types.SafeVersion) (commo
 			return common.HexToAddress("0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761"), nil
 		case types.SafeVersion130:
 			return common.HexToAddress("0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0xAf4bc1f38ab171b69edD46fD11B4b66580488c74"), nil
 		default:
 			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
 		}
@@ -118,6 +137,15 @@ func (cm *ContractManager) getMultiSendCallOnlyAddress(version types.SafeVersion
 		}
 	}
 
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0x4A8E76A4eCaD4Fb0B3e8f51ec43A6979D384B0bF"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
 	return common.Address{}, fmt.Errorf("unsupported chain ID: %d", chainID)
 }
 
@@ -132,6 +160,15 @@ func (cm *ContractManager) GetSafeMasterCopyAddress(version types.SafeVersion) (
 			return common.HexToAddress("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552"), nil
 		case types.SafeVersion130:
 			return common.HexToAddress("0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0xf1da1C6Dbdb74F16f9b2054795e29df01b5eb3a2"), nil
 		default:
 			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
 		}
@@ -156,6 +193,15 @@ func (cm *ContractManager) GetCompatibilityFallbackHandlerAddress(version types.
 		}
 	}
 
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0x51Eb07162CDd89e0575d059e848888e283155710"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
 	return common.Address{}, fmt.Errorf("unsupported chain ID: %d", chainID)
 }
 
@@ -175,6 +221,15 @@ func (cm *ContractManager) GetCreateCallAddress(version types.SafeVersion) (comm
 		}
 	}
 
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0xe324d7DFe4B1cf38Deac8397cFE98fBBFE46D349"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
 	return common.Address{}, fmt.Errorf("unsupported chain ID: %d", chainID)
 }
 
@@ -189,6 +244,15 @@ func (cm *ContractManager) GetSignMessageLibAddress(version types.SafeVersion) (
 			return common.HexToAddress("0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2"), nil
 		case types.SafeVersion130:
 			return common.HexToAddress("0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2"), nil
+		default:
+			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
+		}
+	}
+
+	if chainID == 11155111 {
+		switch version {
+		case types.SafeVersion150Multichannel:
+			return common.HexToAddress("0x662a9BAB37AF013D5A9a3e3B3b50E5133Ebfb6d5"), nil
 		default:
 			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
 		}

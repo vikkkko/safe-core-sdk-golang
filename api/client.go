@@ -22,10 +22,10 @@ type SafeApiKitConfig struct {
 
 // SafeApiKit provides methods to interact with Safe Transaction Service API
 type SafeApiKit struct {
-	chainID       int64
-	apiKey        string
-	baseURL       string
-	httpClient    *http.Client
+	chainID    int64
+	apiKey     string
+	baseURL    string
+	httpClient *http.Client
 }
 
 // NewSafeApiKit creates a new Safe API client
@@ -74,6 +74,24 @@ func (api *SafeApiKit) GetSafeInfo(ctx context.Context, safeAddress string) (*Sa
 	return &response, nil
 }
 
+// GetSafeNonces retrieves multi-channel nonce information for a Safe
+func (api *SafeApiKit) GetSafeNonces(ctx context.Context, safeAddress string) (*SafeNoncesResponse, error) {
+	endpoint := fmt.Sprintf("/api/v1/safes/%s/nonces/", safeAddress)
+
+	var response SafeNoncesResponse
+	err := api.makeRequest(ctx, "GET", endpoint, nil, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe nonces: %w", err)
+	}
+
+	// Backward compatibility: if only single nonce is returned, map it to channel 0
+	if response.Nonces == nil && response.Nonce != nil {
+		response.Nonces = map[string]string{"0": *response.Nonce}
+	}
+
+	return &response, nil
+}
+
 // GetMultisigTransactions retrieves multisig transactions for a Safe
 func (api *SafeApiKit) GetMultisigTransactions(ctx context.Context, safeAddress string, options *GetMultisigTransactionsOptions) (*SafeMultisigTransactionListResponse, error) {
 	endpoint := fmt.Sprintf("/api/v1/safes/%s/multisig-transactions/", safeAddress)
@@ -86,6 +104,9 @@ func (api *SafeApiKit) GetMultisigTransactions(ctx context.Context, safeAddress 
 		}
 		if options.TrustedOnly != nil {
 			params.Add("trusted", strconv.FormatBool(*options.TrustedOnly))
+		}
+		if options.Channel != nil {
+			params.Add("channel", strconv.FormatInt(*options.Channel, 10))
 		}
 		if options.Limit != nil {
 			params.Add("limit", strconv.Itoa(*options.Limit))
@@ -156,6 +177,9 @@ func (api *SafeApiKit) GetPendingTransactions(ctx context.Context, safeAddress s
 
 	params := url.Values{}
 	params.Add("executed", "false")
+	if options != nil && options.Channel != nil {
+		params.Add("channel", strconv.FormatInt(*options.Channel, 10))
+	}
 
 	if options != nil {
 		if options.Limit != nil {

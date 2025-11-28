@@ -118,6 +118,21 @@ func (s *Safe) GetChainID() int64 {
 	return s.config.ChainID
 }
 
+// GetVersion returns the Safe contract version
+func (s *Safe) GetVersion(ctx context.Context) (string, error) {
+	safeContract, err := s.contractManager.GetSafeContract(s.GetAddress())
+	if err != nil {
+		return "", fmt.Errorf("failed to get Safe contract: %w", err)
+	}
+
+	version, err := safeContract.VERSION(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to read Safe version: %w", err)
+	}
+
+	return version, nil
+}
+
 // IsSafeDeployed checks if the Safe is deployed on the blockchain
 func (s *Safe) IsSafeDeployed(ctx context.Context) (bool, error) {
 	address := s.GetAddress()
@@ -130,6 +145,15 @@ func (s *Safe) IsSafeDeployed(ctx context.Context) (bool, error) {
 
 // GetNonce returns the current nonce of the Safe
 func (s *Safe) GetNonce(ctx context.Context) (uint64, error) {
+	version, err := s.GetVersion(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if isMultichannelVersion(version) {
+		return s.GetChannelNonce(ctx, 0)
+	}
+
 	safeContract, err := s.contractManager.GetSafeContract(s.GetAddress())
 	if err != nil {
 		return 0, fmt.Errorf("failed to get Safe contract: %w", err)
@@ -138,6 +162,38 @@ func (s *Safe) GetNonce(ctx context.Context) (uint64, error) {
 	nonce, err := safeContract.GetNonce(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get nonce: %w", err)
+	}
+
+	return nonce.Uint64(), nil
+}
+
+// GetChannelNonce returns the nonce for a specific channel (channel 0 for legacy Safes)
+func (s *Safe) GetChannelNonce(ctx context.Context, channel uint64) (uint64, error) {
+	safeContract, err := s.contractManager.GetSafeContract(s.GetAddress())
+	if err != nil {
+		return 0, fmt.Errorf("failed to get Safe contract: %w", err)
+	}
+
+	version, err := safeContract.VERSION(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read Safe version: %w", err)
+	}
+
+	// Legacy Safes do not support channelNonces; only channel 0 is valid
+	if !isMultichannelVersion(version) {
+		if channel != 0 {
+			return 0, fmt.Errorf("legacy Safe does not support channel %d", channel)
+		}
+		nonce, err := safeContract.GetNonce(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get nonce: %w", err)
+		}
+		return nonce.Uint64(), nil
+	}
+
+	nonce, err := safeContract.GetChannelNonce(ctx, channel)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get channel nonce: %w", err)
 	}
 
 	return nonce.Uint64(), nil
@@ -216,8 +272,10 @@ func (s *Safe) GetSafeInfo(ctx context.Context) (*types.SafeInfo, error) {
 		return nil, fmt.Errorf("failed to get guard: %w", err)
 	}
 
-	// Get version (placeholder for now)
-	version := string(types.DefaultSafeVersion)
+	version, err := s.GetVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version: %w", err)
+	}
 
 	return &types.SafeInfo{
 		Address:         address.Hex(),
@@ -248,10 +306,23 @@ func (s *Safe) CreateTransaction(ctx context.Context, txData types.SafeTransacti
 
 // standardizeSafeTransactionData fills in missing fields in transaction data
 func (s *Safe) standardizeSafeTransactionData(ctx context.Context, txData types.SafeTransactionDataPartial) (*types.SafeTransactionData, error) {
+	version, err := s.GetVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Safe version: %w", err)
+	}
+	isMulti := isMultichannelVersion(version)
+
 	// Set default operation type if not specified
 	operation := types.Call
 	if txData.Operation != nil {
 		operation = *txData.Operation
+	}
+
+	channel := uint64(0)
+	if txData.Channel != nil {
+		channel = *txData.Channel
+	} else if isMulti {
+		return nil, fmt.Errorf("channel is required for multichannel Safe (version %s)", version)
 	}
 
 	// Get current nonce if not specified
@@ -259,11 +330,19 @@ func (s *Safe) standardizeSafeTransactionData(ctx context.Context, txData types.
 	if txData.Nonce != nil {
 		nonce = *txData.Nonce
 	} else {
-		currentNonce, err := s.GetNonce(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current nonce: %w", err)
+		if isMulti {
+			currentNonce, err := s.GetChannelNonce(ctx, channel)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get current channel nonce: %w", err)
+			}
+			nonce = currentNonce
+		} else {
+			currentNonce, err := s.GetNonce(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get current nonce: %w", err)
+			}
+			nonce = currentNonce
 		}
-		nonce = currentNonce
 	}
 
 	// Set default gas values if not specified
@@ -297,6 +376,7 @@ func (s *Safe) standardizeSafeTransactionData(ctx context.Context, txData types.
 		Value:          txData.Value,
 		Data:           txData.Data,
 		Operation:      operation,
+		Channel:        channel,
 		SafeTxGas:      safeTxGas,
 		BaseGas:        baseGas,
 		GasPrice:       gasPrice,
@@ -309,6 +389,7 @@ func (s *Safe) standardizeSafeTransactionData(ctx context.Context, txData types.
 // GetTransactionHash calculates the transaction hash from the Safe contract
 func (s *Safe) GetTransactionHash(
 	ctx context.Context,
+	channel uint64,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -326,6 +407,8 @@ func (s *Safe) GetTransactionHash(
 	}
 
 	return safeContract.GetTransactionHash(
+		ctx,
+		channel,
 		to,
 		value,
 		data,
@@ -410,6 +493,7 @@ func (s *Safe) ExecuteTransaction(ctx context.Context, transaction *types.SafeTr
 	value := parseBigIntString(data.Value)
 	dataBytes := common.FromHex(data.Data)
 	operation := uint8(data.Operation)
+	channel := data.Channel
 	safeTxGas := parseBigIntString(data.SafeTxGas)
 	baseGas := parseBigIntString(data.BaseGas)
 	gasPrice := parseBigIntString(data.GasPrice)
@@ -419,6 +503,7 @@ func (s *Safe) ExecuteTransaction(ctx context.Context, transaction *types.SafeTr
 	tx, err := safeContract.ExecTransaction(
 		ctx,
 		auth,
+		channel,
 		to,
 		value,
 		dataBytes,
@@ -490,4 +575,8 @@ func (s *Safe) DeploySafe(ctx context.Context, config types.SafeDeploymentConfig
 		TransactionResponse: nil,
 		Options:             nil,
 	}, nil
+}
+
+func isMultichannelVersion(version string) bool {
+	return strings.HasPrefix(version, string(types.SafeVersion150Multichannel))
 }

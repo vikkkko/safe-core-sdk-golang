@@ -10,6 +10,11 @@ import (
 	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
+var (
+	legacySafeTxTypeHash       = crypto.Keccak256([]byte("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"))
+	multichannelSafeTxTypeHash = crypto.Keccak256([]byte("SafeTx(uint256 channel,address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"))
+)
+
 // SignMessage signs a message with a private key using Safe's expected signature format
 func SignMessage(message []byte, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	// The message is already a hash, sign it directly
@@ -133,6 +138,7 @@ func GenerateContractSignature(contractAddress common.Address, signatureData []b
 // CalculateTransactionHash calculates the hash of a Safe transaction for signing using EIP-712
 func CalculateTransactionHash(
 	safeAddress common.Address,
+	channel *big.Int,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -148,12 +154,15 @@ func CalculateTransactionHash(
 	// EIP-712 domain separator
 	domainSeparator := calculateDomainSeparator(safeAddress, chainID)
 
-	// SafeTx type hash (keccak256 of the type string)
-	safeTxTypeHash := crypto.Keccak256([]byte("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"))
+	useMultichannel := channel != nil
+	if channel == nil {
+		channel = big.NewInt(0)
+	}
 
 	// Encode transaction data according to EIP-712
 	encodedTxData := encodeSafeTransactionData(
-		safeTxTypeHash,
+		useMultichannel,
+		channel,
 		to,
 		value,
 		data,
@@ -193,7 +202,8 @@ func calculateDomainSeparator(safeAddress common.Address, chainID *big.Int) []by
 
 // encodeSafeTransactionData encodes the Safe transaction data according to EIP-712
 func encodeSafeTransactionData(
-	typehash []byte,
+	useMultichannel bool,
+	channel *big.Int,
 	to common.Address,
 	value *big.Int,
 	data []byte,
@@ -208,20 +218,29 @@ func encodeSafeTransactionData(
 	// Hash of the data field (keccak256 of bytes data)
 	dataHash := crypto.Keccak256(data)
 
+	typehash := legacySafeTxTypeHash
+	if useMultichannel {
+		typehash = multichannelSafeTxTypeHash
+	}
+
 	// Encode all fields as 32-byte values
-	return crypto.Keccak256(
-		typehash,                                       // SafeTx typehash
-		common.LeftPadBytes(to.Bytes(), 32),           // to address
-		common.LeftPadBytes(value.Bytes(), 32),        // value
-		dataHash,                                      // keccak256(data)
-		common.LeftPadBytes([]byte{operation}, 32),    // operation
-		common.LeftPadBytes(safeTxGas.Bytes(), 32),    // safeTxGas
-		common.LeftPadBytes(baseGas.Bytes(), 32),      // baseGas
-		common.LeftPadBytes(gasPrice.Bytes(), 32),     // gasPrice
-		common.LeftPadBytes(gasToken.Bytes(), 32),     // gasToken
-		common.LeftPadBytes(refundReceiver.Bytes(), 32), // refundReceiver
-		common.LeftPadBytes(nonce.Bytes(), 32),        // nonce
-	)
+	parts := []byte{}
+	parts = append(parts, typehash...)
+	if useMultichannel {
+		parts = append(parts, common.LeftPadBytes(channel.Bytes(), 32)...)
+	}
+	parts = append(parts, common.LeftPadBytes(to.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(value.Bytes(), 32)...)
+	parts = append(parts, dataHash...)
+	parts = append(parts, common.LeftPadBytes([]byte{operation}, 32)...)
+	parts = append(parts, common.LeftPadBytes(safeTxGas.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(baseGas.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(gasPrice.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(gasToken.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(refundReceiver.Bytes(), 32)...)
+	parts = append(parts, common.LeftPadBytes(nonce.Bytes(), 32)...)
+
+	return crypto.Keccak256(parts)
 }
 
 // CalculateMessageHash calculates the hash of a Safe message for signing

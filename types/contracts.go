@@ -11,21 +11,21 @@ type ContractInfo struct {
 
 // SafeDeploymentConfig represents configuration for deploying a new Safe
 type SafeDeploymentConfig struct {
-	SafeVersion     SafeVersion     `json:"safeVersion"`              // Safe contract version to deploy
-	SafeSetupConfig SafeSetupConfig `json:"safeSetupConfig"`         // Safe setup configuration
-	SaltNonce       *string         `json:"saltNonce,omitempty"`     // Optional salt nonce for deterministic deployment
+	SafeVersion     SafeVersion     `json:"safeVersion"`         // Safe contract version to deploy
+	SafeSetupConfig SafeSetupConfig `json:"safeSetupConfig"`     // Safe setup configuration
+	SaltNonce       *string         `json:"saltNonce,omitempty"` // Optional salt nonce for deterministic deployment
 }
 
 // PredictedSafeProps represents properties of a predicted Safe address
 type PredictedSafeProps struct {
-	SafeAddress         string              `json:"safeAddress"`         // Predicted Safe address
+	SafeAddress          string               `json:"safeAddress"`          // Predicted Safe address
 	SafeDeploymentConfig SafeDeploymentConfig `json:"safeDeploymentConfig"` // Deployment configuration used for prediction
 }
 
 // SafeConfig represents configuration for connecting to an existing Safe
 type SafeConfig struct {
-	SafeAddress *string               `json:"safeAddress,omitempty"` // Existing Safe address
-	Predicted   *PredictedSafeProps   `json:"predicted,omitempty"`   // Predicted Safe properties (for undeployed Safes)
+	SafeAddress *string             `json:"safeAddress,omitempty"` // Existing Safe address
+	Predicted   *PredictedSafeProps `json:"predicted,omitempty"`   // Predicted Safe properties (for undeployed Safes)
 }
 
 // ConnectSafeConfig represents configuration for connecting to a Safe
@@ -37,14 +37,14 @@ type ConnectSafeConfig struct {
 
 // SafeAccountConfig represents the account configuration for a Safe
 type SafeAccountConfig struct {
-	Owners           []string `json:"owners"`           // List of owner addresses
-	Threshold        uint     `json:"threshold"`        // Required number of confirmations
-	To               string   `json:"to,omitempty"`     // Optional setup call target
-	Data             string   `json:"data,omitempty"`   // Optional setup call data
-	FallbackHandler  string   `json:"fallbackHandler,omitempty"`  // Fallback handler address
-	PaymentToken     string   `json:"paymentToken,omitempty"`     // Payment token address
-	Payment          string   `json:"payment,omitempty"`          // Payment amount
-	PaymentReceiver  string   `json:"paymentReceiver,omitempty"`  // Payment receiver address
+	Owners          []string `json:"owners"`                    // List of owner addresses
+	Threshold       uint     `json:"threshold"`                 // Required number of confirmations
+	To              string   `json:"to,omitempty"`              // Optional setup call target
+	Data            string   `json:"data,omitempty"`            // Optional setup call data
+	FallbackHandler string   `json:"fallbackHandler,omitempty"` // Fallback handler address
+	PaymentToken    string   `json:"paymentToken,omitempty"`    // Payment token address
+	Payment         string   `json:"payment,omitempty"`         // Payment amount
+	PaymentReceiver string   `json:"paymentReceiver,omitempty"` // Payment receiver address
 }
 
 // SafeInfo represents information about a Safe account
@@ -116,13 +116,13 @@ type SafeWebAuthnSharedSignerContract struct {
 
 // PasskeyCredential represents a passkey credential
 type PasskeyCredential struct {
-	ID              string `json:"id"`              // Credential ID
-	PublicKey       string `json:"publicKey"`       // Public key
-	RawID           []byte `json:"rawId"`           // Raw credential ID
-	Response        string `json:"response"`        // Credential response
+	ID                string `json:"id"`                // Credential ID
+	PublicKey         string `json:"publicKey"`         // Public key
+	RawID             []byte `json:"rawId"`             // Raw credential ID
+	Response          string `json:"response"`          // Credential response
 	AuthenticatorData []byte `json:"authenticatorData"` // Authenticator data
-	ClientDataJSON  []byte `json:"clientDataJSON"`  // Client data JSON
-	Signature       []byte `json:"signature"`       // Signature
+	ClientDataJSON    []byte `json:"clientDataJSON"`    // Client data JSON
+	Signature         []byte `json:"signature"`         // Signature
 }
 
 // PasskeyArgType represents arguments for passkey operations
@@ -131,7 +131,7 @@ type PasskeyArgType struct {
 }
 
 // DefaultSafeVersion represents the default Safe version to use
-const DefaultSafeVersion = SafeVersion141
+const DefaultSafeVersion = SafeVersion150Multichannel
 
 // PredeterminedSaltNonce represents the predetermined salt nonce for consistent deployment addresses
 const PredeterminedSaltNonce = "0xcfe33a586323e7325be6aa6ecd8b4600d232a9037e83c8ece69413b777dabe65"

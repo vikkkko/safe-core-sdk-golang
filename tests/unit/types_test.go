@@ -167,8 +167,8 @@ func TestSafeSetupConfig(t *testing.T) {
 }
 
 func TestDefaultSafeVersion(t *testing.T) {
-	if types.DefaultSafeVersion != types.SafeVersion141 {
-		t.Errorf("Expected default version %v, got %v", types.SafeVersion141, types.DefaultSafeVersion)
+	if types.DefaultSafeVersion != types.SafeVersion150Multichannel {
+		t.Errorf("Expected default version %v, got %v", types.SafeVersion150Multichannel, types.DefaultSafeVersion)
 	}
 }
 
