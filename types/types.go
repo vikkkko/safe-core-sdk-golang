@@ -13,7 +13,7 @@ type SafeVersion string
 
 const (
 	SafeVersion150             SafeVersion = "1.5.0"
-	SafeVersion150Multichannel SafeVersion = "1.5.0-multichannel.1"
+	SafeVersion150Multichannel SafeVersion = "1.5.0+multichannel.1"
 	SafeVersion141             SafeVersion = "1.4.1"
 	SafeVersion130             SafeVersion = "1.3.0"
 	SafeVersion120             SafeVersion = "1.2.0"

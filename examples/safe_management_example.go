@@ -71,7 +71,7 @@ func main() {
 }
 
 func initializeContext() *SafeManagementContext {
-	rpcURL := os.Getenv("RPC_URL")
+	rpcURL := strings.TrimSpace(os.Getenv("RPC_URL"))
 	if rpcURL == "" {
 		log.Fatal("RPC_URL not set in .env")
 	}
@@ -100,8 +100,12 @@ func initializeContext() *SafeManagementContext {
 
 	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
 
-	safeAPIKey := os.Getenv("SAFE_API_KEY")
-	safeAPIURL := os.Getenv("SAFE_API_BASE_URL")
+	safeAPIKey := strings.TrimSpace(os.Getenv("SAFE_API_KEY"))
+	safeAPIURL := strings.TrimSpace(os.Getenv("SAFE_API_URL"))
+	if safeAPIURL == "" {
+		// backward compat
+		safeAPIURL = strings.TrimSpace(os.Getenv("SAFE_API_BASE_URL"))
+	}
 
 	fmt.Printf("Connected to %s (Chain ID: %s)\n", rpcURL, chainID.String())
 	fmt.Printf("Default signer address: %s\n", fromAddress.Hex())
@@ -170,14 +174,32 @@ func addOwnerWithThreshold(ctx *SafeManagementContext) {
 		return
 	}
 
-	thresholdStr := prompt("New threshold [default:0]")
+	// Get current Safe threshold for default value
+	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
+		SafeAddress: safeAddress.Hex(),
+		RpcURL:      ctx.RPCURL,
+		ChainID:     ctx.ChainID.Int64(),
+		PrivateKey:  ctx.PrivateKeyHex,
+	})
+	if err != nil {
+		log.Printf("Error creating Safe client: %v", err)
+		return
+	}
+
+	currentThreshold, err := safeClient.GetThreshold(context.Background())
+	if err != nil {
+		log.Printf("Error getting current threshold: %v", err)
+		return
+	}
+
+	thresholdStr := prompt(fmt.Sprintf("New threshold [default: keep current=%d]", currentThreshold))
 	var threshold *big.Int
 	if thresholdStr == "" {
-		threshold = big.NewInt(0) // 0 means keep current threshold
+		threshold = big.NewInt(int64(currentThreshold)) // Keep current threshold
 	} else {
 		parsed, err := strconv.ParseInt(thresholdStr, 10, 64)
-		if err != nil || parsed < 0 {
-			log.Printf("Error: Invalid threshold")
+		if err != nil || parsed <= 0 {
+			log.Printf("Error: Invalid threshold (must be > 0)")
 			return
 		}
 		threshold = big.NewInt(parsed)
@@ -270,11 +292,37 @@ func removeOwnerWithThreshold(ctx *SafeManagementContext) {
 
 	fmt.Printf("Previous owner in list: %s\n", prevOwner.Hex())
 
-	thresholdStr := prompt("New threshold")
-	threshold, err := strconv.ParseInt(thresholdStr, 10, 64)
-	if err != nil || threshold < 1 {
-		log.Printf("Error: Invalid threshold (must be >= 1)")
+	// Get current threshold
+	currentThreshold, err := safeClient.GetThreshold(context.Background())
+	if err != nil {
+		log.Printf("Error getting current threshold: %v", err)
 		return
+	}
+
+	// After removing an owner, threshold should be <= remaining owners count
+	maxThreshold := len(owners) - 1
+	if maxThreshold < 1 {
+		log.Printf("Error: Cannot remove owner - Safe must have at least 1 owner")
+		return
+	}
+
+	// Suggest keeping current threshold if valid, or reducing it if necessary
+	suggestedThreshold := int64(currentThreshold)
+	if suggestedThreshold > int64(maxThreshold) {
+		suggestedThreshold = int64(maxThreshold)
+	}
+
+	thresholdStr := prompt(fmt.Sprintf("New threshold [default: %d, max: %d]", suggestedThreshold, maxThreshold))
+	var threshold int64
+	if thresholdStr == "" {
+		threshold = suggestedThreshold
+	} else {
+		parsed, err := strconv.ParseInt(thresholdStr, 10, 64)
+		if err != nil || parsed < 1 || parsed > int64(maxThreshold) {
+			log.Printf("Error: Invalid threshold (must be >= 1 and <= %d)", maxThreshold)
+			return
+		}
+		threshold = parsed
 	}
 
 	// Generate calldata for removeOwner
@@ -433,10 +481,22 @@ func changeThreshold(ctx *SafeManagementContext) {
 	fmt.Printf("\nCurrent threshold: %d\n", currentThreshold)
 	fmt.Printf("Number of owners: %d\n", len(owners))
 
-	thresholdStr := prompt("New threshold")
-	threshold, err := strconv.ParseInt(thresholdStr, 10, 64)
-	if err != nil || threshold < 1 || threshold > int64(len(owners)) {
+	thresholdStr := prompt(fmt.Sprintf("New threshold [current: %d, range: 1-%d]", currentThreshold, len(owners)))
+	var threshold int64
+	if thresholdStr == "" {
+		log.Printf("Cancelled - no change made")
+		return
+	}
+
+	parsed, err := strconv.ParseInt(thresholdStr, 10, 64)
+	if err != nil || parsed < 1 || parsed > int64(len(owners)) {
 		log.Printf("Error: Invalid threshold (must be between 1 and %d)", len(owners))
+		return
+	}
+	threshold = parsed
+
+	if threshold == int64(currentThreshold) {
+		log.Printf("New threshold is same as current threshold - no change needed")
 		return
 	}
 
@@ -508,7 +568,7 @@ func querySafeInfo(ctx *SafeManagementContext) {
 	fmt.Printf("\n=== Safe Information ===\n")
 	fmt.Printf("Address: %s\n", safeAddress.Hex())
 	fmt.Printf("Threshold: %d\n", threshold)
-	fmt.Printf("Nonce: %d\n", nonce)
+	fmt.Printf("Nonce (channel 0): %d\n", nonce)
 	fmt.Printf("Owners (%d):\n", len(owners))
 	for i, owner := range owners {
 		fmt.Printf("  %d. %s\n", i+1, owner.Hex())
@@ -517,6 +577,17 @@ func querySafeInfo(ctx *SafeManagementContext) {
 
 // proposeSafeTransaction creates and proposes a Safe transaction
 func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddress common.Address, calldata []byte) {
+	// Select channel
+	channelStr := prompt("交易 channel [0]")
+	channel := uint64(0)
+	if channelStr != "" {
+		if parsed, err := strconv.ParseUint(channelStr, 10, 64); err == nil {
+			channel = parsed
+		} else {
+			log.Printf("无效的 channel，默认使用 0")
+		}
+	}
+
 	// Create Safe client
 	fmt.Printf("\n🔧 创建Safe客户端...")
 	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
@@ -553,16 +624,35 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 		return
 	}
 
-	currentNonce, err := strconv.ParseUint(safeInfo.Nonce, 10, 64)
+	// 读取版本，按版本选择 nonce 来源
+	version, err := safeClient.GetVersion(context.Background())
 	if err != nil {
-		log.Printf("解析随机数失败: %v", err)
+		log.Printf("读取 Safe 版本失败: %v", err)
 		return
 	}
-	fmt.Printf(" ✅ (阈值: %d/%d, 随机数: %d)\n", safeInfo.Threshold, len(safeInfo.Owners), currentNonce)
+	isMulti := strings.Contains(version, "multichannel")
+
+	currentNonce := uint64(0)
+	if isMulti {
+		onChainNonce, err := safeClient.GetChannelNonce(context.Background(), channel)
+		if err != nil {
+			log.Printf("读取链上 channel %d nonce 失败: %v", channel, err)
+			return
+		}
+		currentNonce = onChainNonce
+	} else {
+		onChainNonce, err := safeClient.GetNonce(context.Background())
+		if err != nil {
+			log.Printf("读取链上 nonce 失败: %v", err)
+			return
+		}
+		currentNonce = onChainNonce
+	}
+
+	fmt.Printf(" ✅ (版本: %s, 阈值: %d/%d, channel %d nonce: %d)\n", version, safeInfo.Threshold, len(safeInfo.Owners), channel, currentNonce)
 
 	// Create Safe transaction
 	fmt.Printf("📋 创建Safe交易...")
-	channel := uint64(0)
 	txData := safetypes.SafeTransactionDataPartial{
 		To:      targetAddress.Hex(),
 		Value:   "0",
@@ -614,19 +704,49 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 	safeTxHash := hex.EncodeToString(txHash)
 	fmt.Printf(" ✅\n   交易哈希: 0x%s\n", safeTxHash)
 
-	// Get first owner's private key for signing
-	ownerKeyHex := os.Getenv("OWNER_PRIVATE_KEY")
-	if ownerKeyHex == "" {
-		log.Printf("Error: OWNER_PRIVATE_KEY not set in .env")
+	// Select signing key
+	fmt.Println("\n=== 选择签名私钥 ===")
+	fmt.Println("1. DEPLOYER_PRIVATE_KEY")
+	fmt.Println("2. OWNER_PRIVATE_KEY")
+	fmt.Println("3. OWNER2_PRIVATE_KEY")
+	fmt.Println("4. OWNER3_PRIVATE_KEY")
+	keyChoice := prompt("选择私钥 [2]")
+	if keyChoice == "" {
+		keyChoice = "2"
+	}
+
+	var selectedPrivateKey string
+	var keyLabel string
+	switch keyChoice {
+	case "1":
+		selectedPrivateKey = os.Getenv("DEPLOYER_PRIVATE_KEY")
+		keyLabel = "DEPLOYER_PRIVATE_KEY"
+	case "2":
+		selectedPrivateKey = os.Getenv("OWNER_PRIVATE_KEY")
+		keyLabel = "OWNER_PRIVATE_KEY"
+	case "3":
+		selectedPrivateKey = os.Getenv("OWNER2_PRIVATE_KEY")
+		keyLabel = "OWNER2_PRIVATE_KEY"
+	case "4":
+		selectedPrivateKey = os.Getenv("OWNER3_PRIVATE_KEY")
+		keyLabel = "OWNER3_PRIVATE_KEY"
+	default:
+		selectedPrivateKey = os.Getenv("OWNER_PRIVATE_KEY")
+		keyLabel = "OWNER_PRIVATE_KEY"
+	}
+
+	if selectedPrivateKey == "" {
+		log.Printf("Error: %s not set in .env", keyLabel)
 		return
 	}
 
-	ownerPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix(ownerKeyHex, "0x"))
+	ownerPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix(selectedPrivateKey, "0x"))
 	if err != nil {
-		log.Printf("解析 OWNER_PRIVATE_KEY 失败: %v", err)
+		log.Printf("解析 %s 失败: %v", keyLabel, err)
 		return
 	}
 	ownerAddress := crypto.PubkeyToAddress(ownerPrivateKey.PublicKey)
+	fmt.Printf("使用私钥: %s (%s)\n", keyLabel, ownerAddress.Hex())
 
 	// Sign transaction
 	fmt.Printf("\n✍️  签名交易...")
@@ -639,7 +759,9 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 
 	// Submit to Safe service
 	fmt.Printf("\n📤 提交交易到Safe服务...")
+	channelPtr := func() *int64 { v := int64(transaction.Data.Channel); return &v }()
 	proposal := api.ProposeTransactionProps{
+		Channel:                 channelPtr,
 		SafeAddress:             safeAddress.Hex(),
 		SafeTxHash:              "0x" + safeTxHash,
 		To:                      transaction.Data.To,
@@ -647,8 +769,8 @@ func proposeSafeTransaction(ctx *SafeManagementContext, safeAddress, targetAddre
 		Data:                    transaction.Data.Data,
 		Operation:               int(transaction.Data.Operation),
 		GasToken:                transaction.Data.GasToken,
-		SafeTxGas:               0,
-		BaseGas:                 0,
+		SafeTxGas:               safeTxGas.Int64(), 
+		BaseGas:                 baseGas.Int64(),
 		GasPrice:                transaction.Data.GasPrice,
 		RefundReceiver:          transaction.Data.RefundReceiver,
 		Nonce:                   int64(transaction.Data.Nonce),
@@ -793,6 +915,9 @@ func confirmSafeTransaction(ctx *SafeManagementContext) {
 	fmt.Printf("数据: %s\n", txDetails.Data)
 	fmt.Printf("当前签名: %d/%d\n", len(txDetails.Confirmations), txDetails.ConfirmationsRequired)
 	fmt.Printf("已执行: %v\n\n", txDetails.IsExecuted)
+	if txDetails.Channel != nil {
+		fmt.Printf("Channel: %d\n", *txDetails.Channel)
+	}
 
 	if !confirmSend() {
 		fmt.Println("Cancelled.")

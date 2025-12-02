@@ -174,6 +174,9 @@ func buildSafeTransactionFromAPIResponse(txDetails *api.SafeMultisigTransactionR
 		RefundReceiver: txDetails.RefundReceiver,
 		Nonce:          uint64(txDetails.Nonce),
 	}
+	if txDetails.Channel != nil {
+		txData.Channel = uint64(*txDetails.Channel)
+	}
 
 	// Build signatures map
 	signatures := make(map[string]types.SafeSignature)

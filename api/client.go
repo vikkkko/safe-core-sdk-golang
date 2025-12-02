@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -64,7 +65,6 @@ func NewSafeApiKit(config SafeApiKitConfig) (*SafeApiKit, error) {
 // GetSafeInfo retrieves information about a Safe
 func (api *SafeApiKit) GetSafeInfo(ctx context.Context, safeAddress string) (*SafeInfoResponse, error) {
 	endpoint := fmt.Sprintf("/api/v1/safes/%s/", safeAddress)
-
 	var response SafeInfoResponse
 	err := api.makeRequest(ctx, "GET", endpoint, nil, &response)
 	if err != nil {
@@ -266,8 +266,9 @@ func (api *SafeApiKit) makeRequest(ctx context.Context, method, endpoint string,
 	}
 
 	// Create request
-	url := api.baseURL + endpoint
-	req, err := http.NewRequestWithContext(ctx, method, url, requestBody)
+	fullURL := api.baseURL + endpoint
+	fmt.Println("fullURL", fullURL)
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -293,7 +294,14 @@ func (api *SafeApiKit) makeRequest(ctx context.Context, method, endpoint string,
 
 	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if os.Getenv("SAFE_API_DEBUG") != "" {
+			fmt.Printf("[safe-api] %s %s -> %d, body: %s\n", method, fullURL, resp.StatusCode, string(responseBody))
+		}
 		return fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	if os.Getenv("SAFE_API_DEBUG") != "" {
+		fmt.Printf("[safe-api] %s %s -> %d\n", method, fullURL, resp.StatusCode)
 	}
 
 	// Parse response - handle empty responses for successful operations

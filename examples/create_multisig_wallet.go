@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -41,15 +42,15 @@ func main() {
 		log.Fatal("RPC_URL not set in .env")
 	}
 
-	chainIDStr := os.Getenv("CHAIN_ID")
+	chainIDStr := strings.TrimSpace(os.Getenv("CHAIN_ID"))
 	chainID, err := strconv.ParseInt(chainIDStr, 10, 64)
 	if err != nil || chainID == 0 {
 		chainID = 11155111 // 默认 Sepolia
 		fmt.Printf("ℹ️  Using default CHAIN_ID: %d\n", chainID)
 	}
 
-	apiKey := os.Getenv("SAFE_API_KEY")
-	txServiceURL := os.Getenv("SAFE_API_URL")
+	apiKey := strings.TrimSpace(os.Getenv("SAFE_API_KEY"))
+	txServiceURL := strings.TrimSpace(os.Getenv("SAFE_API_BASE_URL"))
 	deployerPrivateKey := os.Getenv("DEPLOYER_PRIVATE_KEY")
 	if deployerPrivateKey == "" {
 		log.Fatal("DEPLOYER_PRIVATE_KEY not set in .env")
@@ -151,12 +152,14 @@ func main() {
 
 	fmt.Printf("🔮 Predicting Safe address...")
 
-	// Safe工厂合约地址 (Sepolia)
-	safeFactoryAddress := "0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2"
-	safeSingletonAddress := "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762" // Safe v1.4.1 L2版本
+	// Safe工厂/单例地址 (Sepolia multichannel)
+	safeFactoryAddress := "0x72D89c510AFBeC255b81482C8DCC720FC8743175"
+	safeSingletonAddress := "0x7E4aFC215CBdeB92151379692602faa37B40Edd7"   // Safe v1.5.0-multichannel.1
+	fallbackHandlerAddress := "0x51Eb07162CDd89e0575d059e848888e283155710" // CompatibilityFallbackHandler
 
 	fmt.Printf("📍 Safe Factory: %s\n", safeFactoryAddress)
 	fmt.Printf("📍 Safe Singleton: %s\n", safeSingletonAddress)
+	fmt.Printf("📍 Fallback Handler: %s\n", fallbackHandlerAddress)
 
 	// 生成随机salt用于CREATE2
 	salt := generateRandomSalt()
@@ -169,6 +172,8 @@ func main() {
 		owners,
 		threshold,
 		salt,
+		fallbackHandlerAddress,
+		client,
 	)
 	if err != nil {
 		log.Fatalf("Failed to predict Safe address: %v", err)
@@ -188,6 +193,7 @@ func main() {
 	factoryCallData, err := utils.PrepareSafeDeployment(utils.DeploySafeConfig{
 		Owners:           ownerAddresses,
 		Threshold:        uint(threshold),
+		FallbackHandler:  common.HexToAddress(fallbackHandlerAddress),
 		FactoryAddress:   common.HexToAddress(safeFactoryAddress),
 		SingletonAddress: common.HexToAddress(safeSingletonAddress),
 		SaltNonce:        new(big.Int).SetBytes(salt[:]),
@@ -260,6 +266,8 @@ func predictSafeAddress(
 	owners []string,
 	threshold int,
 	salt [32]byte,
+	fallbackHandlerAddress string,
+	client *ethclient.Client,
 ) (common.Address, error) {
 	// 将字符串 owners 转换为 common.Address
 	ownerAddresses := make([]common.Address, len(owners))
@@ -273,7 +281,7 @@ func predictSafeAddress(
 		Threshold:       big.NewInt(int64(threshold)),
 		To:              common.Address{},
 		Data:            []byte{},
-		FallbackHandler: common.HexToAddress("0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"),
+		FallbackHandler: common.HexToAddress(fallbackHandlerAddress),
 		PaymentToken:    common.Address{},
 		Payment:         big.NewInt(0),
 		PaymentReceiver: common.Address{},
@@ -285,11 +293,28 @@ func predictSafeAddress(
 	}
 
 	// 使用正确的 CREATE2 地址计算
+	saltNonce := new(big.Int).SetBytes(salt[:])
+
+	// 优先从工厂合约读取 proxy creation code hash，避免本地硬编码与链上不一致
+	if client != nil {
+		factory, err := utils.NewSafeProxyFactoryContract(common.HexToAddress(factoryAddress), client)
+		if err == nil {
+			if codeHash, err := factory.ProxyCreationCodehash(&bind.CallOpts{}, common.HexToAddress(singletonAddress)); err == nil {
+				return utils.CalculateProxyAddressWithCodeHash(
+					common.HexToAddress(factoryAddress),
+					initData,
+					saltNonce,
+					codeHash[:],
+				)
+			}
+		}
+	}
+
 	return utils.CalculateProxyAddress(
 		common.HexToAddress(factoryAddress),
 		common.HexToAddress(singletonAddress),
 		initData,
-		new(big.Int).SetBytes(salt[:]),
+		saltNonce,
 	)
 }
 
@@ -385,24 +410,33 @@ func deploySafeWallet(ctx context.Context, client *ethclient.Client, privateKey 
 	fmt.Printf("   Transaction Index: %d\n", receipt.TransactionIndex)
 
 	// Extract the created Safe address from logs
+	factoryBinding, err := utils.NewSafeProxyFactoryContract(factoryAddr, client)
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to bind factory contract: %w", err)
+	}
+
 	var createdAddress common.Address
-	for _, log := range receipt.Logs {
-		// Look for ProxyCreation event from SafeProxyFactory
-		if len(log.Topics) > 0 && len(log.Data) >= 32 {
-			// The first topic should be the ProxyCreation event hash
-			// The created proxy address is typically in the data or topics
-			if log.Address.Hex() == factoryAddress {
-				// For SafeProxyFactory, the created proxy address is in the first 32 bytes of data
-				if len(log.Data) >= 32 {
-					createdAddress = common.BytesToAddress(log.Data[0:32])
-					break
-				}
-			}
+	for _, lg := range receipt.Logs {
+		if lg.Address != factoryAddr {
+			continue
+		}
+
+		if event, err := factoryBinding.ParseProxyCreation(*lg); err == nil {
+			createdAddress = event.Proxy
+			break
+		}
+		if event, err := factoryBinding.ParseProxyCreationL2(*lg); err == nil {
+			createdAddress = event.Proxy
+			break
+		}
+		if event, err := factoryBinding.ParseChainSpecificProxyCreationL2(*lg); err == nil {
+			createdAddress = event.Proxy
+			break
 		}
 	}
 
 	if createdAddress == (common.Address{}) {
-		return common.Address{}, fmt.Errorf("could not find created Safe address in transaction logs")
+		return common.Address{}, fmt.Errorf("could not find created Safe address in transaction logs for factory %s", factoryAddress)
 	}
 
 	return createdAddress, nil
@@ -410,6 +444,13 @@ func deploySafeWallet(ctx context.Context, client *ethclient.Client, privateKey 
 
 // verifySafeDeployment verifies that the Safe was deployed correctly
 func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAddress common.Address, expectedOwners []string, expectedThreshold int, chainID int64, txServiceURL string, apiKey string) error {
+	txServiceURL = strings.TrimSpace(txServiceURL)
+	apiKey = strings.TrimSpace(apiKey)
+
+	if txServiceURL == "" {
+		fmt.Printf("ℹ️  SAFE_API_URL 未设置，跳过 Tx Service 验证\n")
+		return nil
+	}
 
 	// Check if contract exists
 	code, err := client.CodeAt(ctx, safeAddress, nil)
@@ -425,14 +466,14 @@ func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAdd
 	fmt.Printf("   Contract Size: %d bytes\n", len(code))
 
 	// Try to verify with Safe API (give it a moment to index)
-	fmt.Printf("⏳ Waiting for Safe API indexing...\n")
+	fmt.Printf("⏳ Waiting for Safe API indexing via %s ...\n", txServiceURL)
 	time.Sleep(10 * time.Second)
 
 	// Create API client
 	apiClient, err := api.NewSafeApiKit(api.SafeApiKitConfig{
-		ChainID: chainID,
+		ChainID:      chainID,
 		TxServiceURL: txServiceURL,
-		ApiKey:  apiKey,
+		ApiKey:       apiKey,
 	})
 	if err != nil {
 		fmt.Printf("⚠️  Could not create API client: %v\n", err)
@@ -441,9 +482,11 @@ func verifySafeDeployment(ctx context.Context, client *ethclient.Client, safeAdd
 	}
 
 	// Get Safe info from API
-	safeInfo, err := apiClient.GetSafeInfo(ctx, safeAddress.Hex())
+	reqAddr := safeAddress.Hex()
+	fmt.Printf("🔎 Checking Safe info for %s\n", reqAddr)
+	safeInfo, err := apiClient.GetSafeInfo(ctx, reqAddr)
 	if err != nil {
-		fmt.Printf("⚠️  Safe not yet indexed by API service: %v\n", err)
+		fmt.Printf("⚠️  Safe not yet indexed by API service (%s): %v\n", txServiceURL, err)
 		fmt.Printf("   (This is normal for new deployments)\n")
 		return nil
 	}

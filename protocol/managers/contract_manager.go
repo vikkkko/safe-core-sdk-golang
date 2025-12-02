@@ -168,7 +168,7 @@ func (cm *ContractManager) GetSafeMasterCopyAddress(version types.SafeVersion) (
 	if chainID == 11155111 {
 		switch version {
 		case types.SafeVersion150Multichannel:
-			return common.HexToAddress("0xf1da1C6Dbdb74F16f9b2054795e29df01b5eb3a2"), nil
+			return common.HexToAddress("0x7E4aFC215CBdeB92151379692602faa37B40Edd7"), nil
 		default:
 			return common.Address{}, fmt.Errorf("unsupported Safe version: %s", version)
 		}

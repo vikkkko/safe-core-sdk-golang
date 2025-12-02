@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	abiembed "github.com/vikkkko/safe-core-sdk-golang/abi"
 	"github.com/vikkkko/safe-core-sdk-golang/protocol/utils"
-	"github.com/vikkkko/safe-core-sdk-golang/types"
 )
 
 // SafeContract represents a Safe smart contract
@@ -389,7 +388,7 @@ func (sc *SafeContract) isMultichannel(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return strings.HasPrefix(version, string(types.SafeVersion150Multichannel)), nil
+	return strings.Contains(version, "multichannel"), nil
 }
 
 func (sc *SafeContract) multichannelBinding() (*bind.BoundContract, error) {

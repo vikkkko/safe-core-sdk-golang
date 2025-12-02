@@ -578,5 +578,5 @@ func (s *Safe) DeploySafe(ctx context.Context, config types.SafeDeploymentConfig
 }
 
 func isMultichannelVersion(version string) bool {
-	return strings.HasPrefix(version, string(types.SafeVersion150Multichannel))
+	return strings.Contains(version, "multichannel")
 }
