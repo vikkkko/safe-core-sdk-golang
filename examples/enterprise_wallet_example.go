@@ -3288,19 +3288,20 @@ func predictSafeAddress(
 	}
 
 	// 优先从工厂合约读取 proxy creation code hash，避免本地硬编码与链上不一致
-	if client != nil {
-		factory, err := utils.NewSafeProxyFactoryContract(factoryAddress, client)
-		if err == nil {
-			if codeHash, err := factory.ProxyCreationCodehash(&bind.CallOpts{}, singletonAddress); err == nil {
-				return utils.CalculateProxyAddressWithCodeHash(
-					factoryAddress,
-					initData,
-					params.SaltNonce,
-					codeHash[:],
-				)
-			}
-		}
-	}
+	// if client != nil {
+	// 	factory, err := utils.NewSafeProxyFactoryContract(factoryAddress, client)
+	// 	if err == nil {
+	// 		if codeHash, err := factory.ProxyCreationCodehash(&bind.CallOpts{}, singletonAddress); err == nil {
+	// 			fmt.Printf("codeHash: %#x\n", codeHash)
+	// 			return utils.CalculateProxyAddressWithCodeHash(
+	// 				factoryAddress,
+	// 				initData,
+	// 				params.SaltNonce,
+	// 				codeHash[:],
+	// 			)
+	// 		}
+	// 	}
+	// }
 
 	return utils.CalculateProxyAddress(
 		factoryAddress,
