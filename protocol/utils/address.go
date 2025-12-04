@@ -76,7 +76,7 @@ func CalculateProxyAddress(
 	saltNonce *big.Int,
 ) (common.Address, error) {
 	// Fallback to legacy precomputed proxy creation code
-	codeHash := common.FromHex("0x5d161a5393cf1b23a51bc4a0e786f03f85fc8c84fc98550c5f2630d1e5732ec0")
+	codeHash := common.FromHex("0x9130477c74e18a2d1981982d401c053d0e0124605f4fe0fbfcc37baa67b6a1a6")
 	return CalculateProxyAddressWithCodeHash(factory, initializer, saltNonce, codeHash)
 }
 

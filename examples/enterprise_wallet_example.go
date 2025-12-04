@@ -31,7 +31,7 @@ const (
 	FactoryAddress       = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
 	ImplementationAddr   = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
 	SafeFactoryAddress   = "0x72D89c510AFBeC255b81482C8DCC720FC8743175"
-	SafeSingletonAddress = "0x7E4aFC215CBdeB92151379692602faa37B40Edd7"
+	SafeSingletonAddress = "0xeA4156684Bc8AEdfA3062A336cABf8dBe3831ee0"
 	GuardFactoryAddress  = "0xYourGuardFactoryAddressHere" // TODO: Replace with actual deployed address
 )
 
@@ -1370,14 +1370,22 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 	})
 
 	if ctx.SafeAPIKey == "" {
-		result, execErr := safeClient.ExecuteTransaction(context.Background(), transaction)
-		if execErr != nil {
-			log.Printf("执行Safe交易失败: %v", execErr)
-			return
-		}
-		fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
-		if txObj, ok := result.TransactionResponse.(*gethtypes.Transaction); ok {
-			waitForTransaction(ctx, txObj)
+		// 询问用户是否执行交易
+		fmt.Println("\n=== 执行交易 ===")
+		executeChoice := prompt("签名已添加，是否立即执行交易? (yes/no) [no]")
+		if strings.ToLower(executeChoice) == "yes" || strings.ToLower(executeChoice) == "y" {
+			result, execErr := safeClient.ExecuteTransaction(context.Background(), transaction)
+			if execErr != nil {
+				log.Printf("执行Safe交易失败: %v", execErr)
+				return
+			}
+			fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
+			if txObj, ok := result.TransactionResponse.(*gethtypes.Transaction); ok {
+				waitForTransaction(ctx, txObj)
+			}
+		} else {
+			fmt.Printf("✅ 签名已添加，但未执行交易\n")
+			fmt.Printf("💡 您可以稍后手动执行此交易\n")
 		}
 		return
 	}
@@ -1442,20 +1450,30 @@ func createSafeAndPaymentAccount(ctx *ExampleContext) {
 
 	// 判断是否可以执行
 	if len(txDetails.Confirmations) >= txDetails.ConfirmationsRequired {
-		fmt.Printf("\n✅ 交易已收集足够签名，即将通过 SDK 执行!\n")
-		safeTx, buildErr := buildSafeTransactionFromDetails(txDetails)
-		if buildErr != nil {
-			log.Printf("构建Safe交易失败: %v", buildErr)
-			return
-		}
+		fmt.Printf("\n✅ 交易已收集足够签名，可以执行!\n")
 
-		result, execErr := safeClient.ExecuteTransaction(context.Background(), safeTx)
-		if execErr != nil {
-			log.Printf("执行Safe交易失败: %v", execErr)
-			return
-		}
+		// 询问用户是否执行交易
+		fmt.Println("\n=== 执行交易 ===")
+		executeChoice := prompt("是否立即执行交易? (yes/no) [no]")
 
-		fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
+		if strings.ToLower(executeChoice) == "yes" || strings.ToLower(executeChoice) == "y" {
+			safeTx, buildErr := buildSafeTransactionFromDetails(txDetails)
+			if buildErr != nil {
+				log.Printf("构建Safe交易失败: %v", buildErr)
+				return
+			}
+
+			result, execErr := safeClient.ExecuteTransaction(context.Background(), safeTx)
+			if execErr != nil {
+				log.Printf("执行Safe交易失败: %v", execErr)
+				return
+			}
+
+			fmt.Printf("🚀 Safe 交易已执行! Tx hash: %s\n", result.Hash)
+		} else {
+			fmt.Printf("✅ 交易已达到执行阈值，但未执行\n")
+			fmt.Printf("💡 您可以稍后手动执行此交易\n")
+		}
 	} else {
 		need := txDetails.ConfirmationsRequired - len(txDetails.Confirmations)
 		fmt.Printf("\n⏳ 还需要 %d 个签名才能执行\n", need)
