@@ -194,12 +194,13 @@ func GetMethodSelector(signature string) [4]byte {
 
 // Common method selectors for enterprise wallet
 var (
-	CreatePaymentAccountSelector           = GetMethodSelector("createPaymentAccount(string,address)")
-	CreateCollectionAccountSelector        = GetMethodSelector("createCollectionAccount(string,address)")
-	ApproveTokenForPaymentSelector         = GetMethodSelector("approveTokenForPayment(address,address,uint256)")
-	TransferETHToPaymentSelector           = GetMethodSelector("transferETHToPayment(address,uint256)")
-	CollectFundsSelector                   = GetMethodSelector("collectFunds(address,address)")
-	CreateSafeAndPaymentAccountSelector    = GetMethodSelector("createSafeAndPaymentAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string)")
+	CreatePaymentAccountSelector                     = GetMethodSelector("createPaymentAccount(string,address)")
+	CreateCollectionAccountSelector                  = GetMethodSelector("createCollectionAccount(string,address)")
+	ApproveTokenForPaymentSelector                   = GetMethodSelector("approveTokenForPayment(address,address,uint256)")
+	TransferETHToPaymentSelector                     = GetMethodSelector("transferETHToPayment(address,uint256)")
+	CollectFundsSelector                             = GetMethodSelector("collectFunds(address,address)")
+	CreateSafeAndPaymentAccountSelector              = GetMethodSelector("createSafeAndPaymentAccount(address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256),string)")
+	CreateAndUpdatePaymentAccountControllerSelector  = GetMethodSelector("createAndUpdatePaymentAccountController(address,address,address,(address[],uint256,address,bytes,address,address,uint256,address,uint256))")
 
 	// SuperAdmin transfer selectors
 	ProposeSuperAdminTransferSelector = GetMethodSelector("proposeSuperAdminTransfer(address,uint256)")
@@ -456,6 +457,59 @@ func PaymentAccountApproveData(token common.Address, to common.Address, amount *
 	data, err := parsedABI.Pack("approve", token, to, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode approve call: %w", err)
+	}
+
+	return data, nil
+}
+
+// CreateAndUpdatePaymentAccountControllerData creates the call data for EnterpriseWallet.createAndUpdatePaymentAccountController()
+// This method creates a new Safe and sets it as the controller for an existing payment account
+// Parameters:
+//   - paymentAccount: The payment account address
+//   - proxyFactory: Safe proxy factory address
+//   - safeSingleton: Safe singleton (implementation) address
+//   - safeParams: Safe setup parameters including owners, threshold, etc.
+func CreateAndUpdatePaymentAccountControllerData(
+	paymentAccount common.Address,
+	proxyFactory common.Address,
+	safeSingleton common.Address,
+	safeParams SafeSetupParams,
+) ([]byte, error) {
+	parsedABI, err := abi.JSON(strings.NewReader(EnterpriseWalletABI))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EnterpriseWallet ABI: %w", err)
+	}
+
+	// Convert SafeSetupParams to the format expected by the ABI
+	data, err := parsedABI.Pack(
+		"createAndUpdatePaymentAccountController",
+		paymentAccount,
+		proxyFactory,
+		safeSingleton,
+		struct {
+			Owners          []common.Address
+			Threshold       *big.Int
+			To              common.Address
+			Data            []byte
+			FallbackHandler common.Address
+			PaymentToken    common.Address
+			Payment         *big.Int
+			PaymentReceiver common.Address
+			SaltNonce       *big.Int
+		}{
+			Owners:          safeParams.Owners,
+			Threshold:       safeParams.Threshold,
+			To:              safeParams.To,
+			Data:            safeParams.Data,
+			FallbackHandler: safeParams.FallbackHandler,
+			PaymentToken:    safeParams.PaymentToken,
+			Payment:         safeParams.Payment,
+			PaymentReceiver: safeParams.PaymentReceiver,
+			SaltNonce:       safeParams.SaltNonce,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode createAndUpdatePaymentAccountController call: %w", err)
 	}
 
 	return data, nil

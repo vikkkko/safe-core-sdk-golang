@@ -29,7 +29,7 @@ import (
 
 const (
 	FactoryAddress       = "0xB67cA0029C0f6DCA816913edBDBdDe8b761C3546"
-	ImplementationAddr   = "0xcca1b018ff0D7f4F3e253e94968536F767F13a02"
+	ImplementationAddr   = "0x8c09827ebfc844d09145fee5c5214ca6abbd51db"
 	SafeFactoryAddress   = "0x72D89c510AFBeC255b81482C8DCC720FC8743175"
 	SafeSingletonAddress = "0xeA4156684Bc8AEdfA3062A336cABf8dBe3831ee0"
 	GuardFactoryAddress  = "0xYourGuardFactoryAddressHere" // TODO: Replace with actual deployed address
@@ -445,6 +445,7 @@ func showMenu() {
 	fmt.Println("  29. Predict Guard Address")
 	fmt.Println("  30. Get Existing Guard")
 	fmt.Println("  31. Create New Guard")
+	fmt.Println("  32. Create Safe and Update Payment Account Controller")
 	fmt.Println("  0.  Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -557,6 +558,8 @@ func runExample(ctx *ExampleContext, choice string) {
 		getExistingGuard(ctx)
 	case "31":
 		createNewGuard(ctx)
+	case "32":
+		createSafeAndUpdatePaymentAccountController(ctx)
 	default:
 		fmt.Println("Invalid choice.")
 	}
@@ -634,6 +637,7 @@ func deployWallet(ctx *ExampleContext) {
 		utils.CreateSafeAndPaymentAccountSelector,
 		utils.CreateCollectionAccountSelector,
 		utils.CollectFundsSelector,
+		utils.CreateAndUpdatePaymentAccountControllerSelector,
 	}
 
 	configs := make([]utils.MethodConfig, len(methodSelectors))
@@ -2871,7 +2875,7 @@ func confirmSafeTransactionSDK(ctx *ExampleContext) {
 		SafeAddress: safeAddress,
 		RpcURL:      ctx.RPCURL,
 		ChainID:     ctx.ChainID.Int64(),
-		PrivateKey:  ctx.PrivateKeyHex,
+		PrivateKey:  selectedPrivateKey,//ctx.PrivateKeyHex,
 	})
 	if err != nil {
 		log.Printf("创建Safe客户端失败: %v", err)
@@ -3327,4 +3331,418 @@ func predictSafeAddress(
 		initData,
 		params.SaltNonce,
 	)
+}
+
+func createSafeAndUpdatePaymentAccountController(ctx *ExampleContext) {
+	fmt.Println("=== Create Safe and Update Payment Account Controller ===")
+	fmt.Println("This operation creates a new Safe and sets it as the controller for an existing payment account")
+	fmt.Println()
+
+	walletAddr := promptAddress("Enterprise wallet address", "")
+	paymentAccount := promptAddress("Payment account address", "")
+	safeAddr := promptAddress("Safe multisig address (for proposing transaction)", "")
+	safeAddress := safeAddr.Hex()
+	safeProxyFactory := promptAddress("Safe proxy factory", SafeFactoryAddress)
+	safeSingleton := promptAddress("Safe singleton", SafeSingletonAddress)
+
+	// 从环境变量读取三个 owner 私钥并转换为地址
+	var owners []common.Address
+	var ownerPrivateKeys []*ecdsa.PrivateKey
+	ownerKeyHexes := []string{
+		os.Getenv("OWNER_PRIVATE_KEY"),
+		os.Getenv("OWNER2_PRIVATE_KEY"),
+		os.Getenv("OWNER3_PRIVATE_KEY"),
+	}
+
+	for i, keyHex := range ownerKeyHexes {
+		if keyHex == "" {
+			log.Printf("Warning: OWNER%d_PRIVATE_KEY not set in .env, skipping", i+1)
+			continue
+		}
+		cleanKey := strings.TrimPrefix(keyHex, "0x")
+		privateKey, err := crypto.HexToECDSA(cleanKey)
+		if err != nil {
+			log.Printf("Warning: Failed to parse OWNER%d_PRIVATE_KEY: %v", i+1, err)
+			continue
+		}
+		ownerAddr := crypto.PubkeyToAddress(privateKey.PublicKey)
+		owners = append(owners, ownerAddr)
+		ownerPrivateKeys = append(ownerPrivateKeys, privateKey)
+	}
+
+	if len(owners) == 0 {
+		log.Printf("Error: No valid owner private keys found in .env")
+		return
+	}
+
+	// 询问阈值
+	thresholdStr := prompt(fmt.Sprintf("Threshold (%d owners configured) [2]", len(owners)))
+	threshold := int64(2)
+	if thresholdStr != "" {
+		parsed, err := strconv.ParseInt(thresholdStr, 10, 64)
+		if err == nil && parsed > 0 && parsed <= int64(len(owners)) {
+			threshold = parsed
+		}
+	}
+
+	fmt.Printf("\n=== New Safe Configuration ===\n")
+	fmt.Printf("Owners (%d):\n", len(owners))
+	for i, owner := range owners {
+		fmt.Printf("  %d. %s\n", i+1, owner.Hex())
+	}
+	fmt.Printf("Threshold: %d/%d\n", threshold, len(owners))
+
+	// 询问是否需要设置 guard
+	guardInput := prompt("Guard address (leave empty to skip)")
+	var guardAddress common.Address
+	var setupTo common.Address
+	var setupData []byte
+
+	if guardInput != "" {
+		if !common.IsHexAddress(guardInput) {
+			log.Printf("Error: Invalid guard address")
+			return
+		}
+		guardAddress = common.HexToAddress(guardInput)
+
+		// 询问 SafeGuardSetter 合约地址
+		guardSetterInput := prompt("SafeGuardSetter contract address")
+		if !common.IsHexAddress(guardSetterInput) {
+			log.Printf("Error: Invalid SafeGuardSetter address")
+			return
+		}
+		guardSetterAddress := common.HexToAddress(guardSetterInput)
+
+		// 生成 setGuard calldata
+		var err error
+		setupData, err = utils.SafeSetGuardData(guardAddress)
+		if err != nil {
+			log.Printf("Error generating setGuard calldata: %v", err)
+			return
+		}
+
+		setupTo = guardSetterAddress
+		fmt.Printf("✅ Will set Guard via SafeGuardSetter (%s): %s\n", guardSetterAddress.Hex(), guardAddress.Hex())
+	} else {
+		fmt.Println("ℹ️  No Guard will be set")
+	}
+
+	params := utils.SafeSetupParams{
+		Owners:          owners,
+		Threshold:       big.NewInt(threshold),
+		To:              setupTo,
+		Data:            setupData,
+		FallbackHandler: common.Address{},
+		PaymentToken:    common.Address{},
+		Payment:         big.NewInt(0),
+		PaymentReceiver: owners[0],
+		SaltNonce:       big.NewInt(time.Now().Unix()),
+	}
+
+	// 预测新 Safe 地址
+	fmt.Printf("\n📍 Predicting new Safe address...")
+	predictedSafeAddr, err := predictSafeAddress(safeProxyFactory, safeSingleton, params, ctx.Client)
+	if err != nil {
+		log.Printf("Failed to predict Safe address: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+	fmt.Printf("🎯 New Safe address will be: %s\n", predictedSafeAddr.Hex())
+	fmt.Printf("📝 SaltNonce: %s\n\n", params.SaltNonce.String())
+
+	// Prepare calldata
+	data, err := utils.CreateAndUpdatePaymentAccountControllerData(
+		paymentAccount,
+		safeProxyFactory,
+		safeSingleton,
+		params,
+	)
+	if err != nil {
+		log.Printf("Error generating calldata: %v", err)
+		return
+	}
+
+	fmt.Printf("\nCalldata: 0x%x\n", data)
+	fmt.Printf("Calldata length: %d bytes\n", len(data))
+	fmt.Printf("Will be called via Safe multisig: %s\n", safeAddress)
+	fmt.Printf("Target: EnterpriseWallet at %s\n", walletAddr.Hex())
+	fmt.Printf("Payment Account: %s\n", paymentAccount.Hex())
+	fmt.Printf("New Controller: %s\n\n", predictedSafeAddr.Hex())
+
+	if !confirmSend() {
+		fmt.Println("Cancelled.")
+		return
+	}
+
+	// 创建Safe客户端和API客户端
+	fmt.Printf("\n🔧 Creating Safe client...")
+	safeClient, err := protocol.NewSafe(protocol.SafeConfig{
+		SafeAddress: safeAddress,
+		RpcURL:      ctx.RPCURL,
+		ChainID:     ctx.ChainID.Int64(),
+		PrivateKey:  ctx.PrivateKeyHex,
+	})
+	if err != nil {
+		log.Printf("Failed to create Safe client: %v", err)
+		return
+	}
+
+	if ctx.SafeAPIKey == "" {
+		fmt.Printf(" ⚠️  SAFE_API_KEY not configured\n")
+	}
+
+	apiConfig := api.SafeApiKitConfig{
+		ChainID:      ctx.ChainID.Int64(),
+		TxServiceURL: ctx.SafeAPIURL,
+	}
+	apiClient, err := api.NewSafeApiKit(apiConfig)
+	if err != nil {
+		log.Printf("Failed to create API client: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 选择 channel
+	channelStr := prompt("Transaction channel [0]")
+	channel := uint64(0)
+	if channelStr != "" {
+		if parsed, err := strconv.ParseUint(channelStr, 10, 64); err == nil {
+			channel = parsed
+		} else {
+			log.Printf("Invalid channel, using 0")
+		}
+	}
+
+	// 获取Safe信息
+	fmt.Printf("📊 Getting Safe info...")
+	safeInfo, err := apiClient.GetSafeInfo(context.Background(), safeAddress)
+	if err != nil {
+		log.Printf("Failed to get Safe info: %v", err)
+		return
+	}
+
+	// 读取版本
+	version, err := safeClient.GetVersion(context.Background())
+	if err != nil {
+		log.Printf("Failed to get Safe version: %v", err)
+		return
+	}
+	isMulti := strings.Contains(version, "multichannel")
+
+	currentNonce := uint64(0)
+	if isMulti {
+		onChainNonce, err := safeClient.GetChannelNonce(context.Background(), channel)
+		if err != nil {
+			log.Printf("Failed to get channel %d nonce: %v", channel, err)
+			return
+		}
+		currentNonce = onChainNonce
+	} else {
+		onChainNonce, err := safeClient.GetNonce(context.Background())
+		if err != nil {
+			log.Printf("Failed to get nonce: %v", err)
+			return
+		}
+		currentNonce = onChainNonce
+	}
+
+	fmt.Printf(" ✅ (版本: %s, 阈值: %d/%d, channel %d nonce: %d)\n", version, safeInfo.Threshold, len(safeInfo.Owners), channel, currentNonce)
+
+	// 创建Safe交易
+	fmt.Printf("📋 创建Safe交易...")
+	txData := safetypes.SafeTransactionDataPartial{
+		To:      walletAddr.Hex(),
+		Value:   "0",
+		Data:    "0x" + hex.EncodeToString(data),
+		Nonce:   &currentNonce,
+		Channel: &channel,
+	}
+
+	transaction, err := safeClient.CreateTransaction(context.Background(), txData)
+	if err != nil {
+		log.Printf("创建交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 获取Safe交易哈希
+	fmt.Printf("🔐 获取Safe交易哈希...")
+	value := new(big.Int)
+	value.SetString(transaction.Data.Value, 10)
+
+	safeTxGas := new(big.Int)
+	safeTxGas.SetString(transaction.Data.SafeTxGas, 10)
+
+	baseGas := new(big.Int)
+	baseGas.SetString(transaction.Data.BaseGas, 10)
+
+	gasPrice := new(big.Int)
+	gasPrice.SetString(transaction.Data.GasPrice, 10)
+
+	txHashBytes, err := safeClient.GetTransactionHash(
+		context.Background(),
+		transaction.Data.Channel,
+		common.HexToAddress(transaction.Data.To),
+		value,
+		common.FromHex(transaction.Data.Data),
+		uint8(transaction.Data.Operation),
+		safeTxGas,
+		baseGas,
+		gasPrice,
+		common.HexToAddress(transaction.Data.GasToken),
+		common.HexToAddress(transaction.Data.RefundReceiver),
+		new(big.Int).SetUint64(transaction.Data.Nonce),
+	)
+	if err != nil {
+		log.Printf("获取交易哈希失败: %v", err)
+		return
+	}
+	txHash := txHashBytes[:]
+	safeTxHash := hex.EncodeToString(txHash)
+	fmt.Printf(" ✅\n   交易哈希: 0x%s\n", safeTxHash)
+
+	// 选择签名私钥
+	fmt.Println("\n=== Select Signing Private Key ===")
+	fmt.Println("1. DEPLOYER_PRIVATE_KEY")
+	fmt.Println("2. OWNER_PRIVATE_KEY")
+	fmt.Println("3. OWNER2_PRIVATE_KEY")
+	fmt.Println("4. OWNER3_PRIVATE_KEY")
+	keyChoice := prompt("Select private key [2]")
+	if keyChoice == "" {
+		keyChoice = "2"
+	}
+
+	var selectedPrivateKey string
+	var keyLabel string
+	switch keyChoice {
+	case "1":
+		selectedPrivateKey = os.Getenv("DEPLOYER_PRIVATE_KEY")
+		keyLabel = "DEPLOYER_PRIVATE_KEY"
+	case "2":
+		selectedPrivateKey = os.Getenv("OWNER_PRIVATE_KEY")
+		keyLabel = "OWNER_PRIVATE_KEY"
+	case "3":
+		selectedPrivateKey = os.Getenv("OWNER2_PRIVATE_KEY")
+		keyLabel = "OWNER2_PRIVATE_KEY"
+	case "4":
+		selectedPrivateKey = os.Getenv("OWNER3_PRIVATE_KEY")
+		keyLabel = "OWNER3_PRIVATE_KEY"
+	default:
+		selectedPrivateKey = os.Getenv("OWNER_PRIVATE_KEY")
+		keyLabel = "OWNER_PRIVATE_KEY"
+	}
+
+	if selectedPrivateKey == "" {
+		log.Printf("Error: %s not set in .env", keyLabel)
+		return
+	}
+
+	signerPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix(selectedPrivateKey, "0x"))
+	if err != nil {
+		log.Printf("Error parsing %s: %v", keyLabel, err)
+		return
+	}
+	signerAddress := crypto.PubkeyToAddress(signerPrivateKey.PublicKey)
+	fmt.Printf("使用私钥: %s (%s)\n", keyLabel, signerAddress.Hex())
+
+	// 签名交易
+	fmt.Printf("\n✍️  签名交易...")
+	signature, err := utils.SignMessage(txHash, signerPrivateKey)
+	if err != nil {
+		log.Printf("签名交易失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n   签名者: %s\n", signerAddress.Hex())
+
+	// 提交到Safe服务
+	fmt.Printf("\n📤 提交交易到Safe服务...")
+	proposal := api.ProposeTransactionProps{
+		Channel:                 func() *int64 { v := int64(transaction.Data.Channel); return &v }(),
+		SafeAddress:             safeAddress,
+		SafeTxHash:              "0x" + safeTxHash,
+		To:                      transaction.Data.To,
+		Value:                   transaction.Data.Value,
+		Data:                    transaction.Data.Data,
+		Operation:               int(transaction.Data.Operation),
+		GasToken:                transaction.Data.GasToken,
+		SafeTxGas:               0,
+		BaseGas:                 0,
+		GasPrice:                transaction.Data.GasPrice,
+		RefundReceiver:          transaction.Data.RefundReceiver,
+		Nonce:                   int64(transaction.Data.Nonce),
+		Sender:                  signerAddress.Hex(),
+		Signature:               "0x" + hex.EncodeToString(signature),
+		ContractTransactionHash: "0x" + safeTxHash,
+	}
+
+	_, err = apiClient.ProposeTransaction(context.Background(), proposal)
+	if err != nil {
+		log.Printf("提交失败: %v", err)
+		return
+	}
+	fmt.Printf(" ✅\n")
+
+	// 检查签名数是否足够，如果足够则自动执行
+	fmt.Printf("🔍 检查签名数...")
+	txDetail, err := apiClient.GetMultisigTransaction(context.Background(), "0x"+safeTxHash)
+	if err != nil {
+		log.Printf("获取交易详情失败: %v", err)
+		return
+	}
+
+	confirmationsCount := len(txDetail.Confirmations)
+	fmt.Printf(" (%d/%d)\n", confirmationsCount, txDetail.ConfirmationsRequired)
+
+	if confirmationsCount >= txDetail.ConfirmationsRequired {
+		// 签名数足够，执行交易
+		fmt.Printf("✅ 签名数已满足，执行交易...\n")
+
+		// 处理 channel 字段
+		txChannel := uint64(0)
+		if txDetail.Channel != nil {
+			txChannel = uint64(*txDetail.Channel)
+		}
+
+		// 构建SafeTransaction对象
+		safeTransaction := &safetypes.SafeTransaction{
+			Data: safetypes.SafeTransactionData{
+				Channel:        txChannel,
+				To:             txDetail.To,
+				Value:          txDetail.Value,
+				Data:           txDetail.Data,
+				Operation:      safetypes.OperationType(txDetail.Operation),
+				SafeTxGas:      fmt.Sprintf("%d", txDetail.SafeTxGas),
+				BaseGas:        fmt.Sprintf("%d", txDetail.BaseGas),
+				GasPrice:       txDetail.GasPrice,
+				GasToken:       txDetail.GasToken,
+				RefundReceiver: txDetail.RefundReceiver,
+				Nonce:          uint64(txDetail.Nonce),
+			},
+			Signatures: make(map[string]safetypes.SafeSignature),
+		}
+
+		// 添加所有签名
+		for _, conf := range txDetail.Confirmations {
+			sigBytes := common.FromHex(conf.Signature)
+			if len(sigBytes) >= 65 {
+				safeTransaction.AddSignature(safetypes.SafeSignature{
+					Signer: conf.Owner,
+					Data:   conf.Signature,
+				})
+			}
+		}
+
+		// 执行交易
+		result, err := safeClient.ExecuteTransaction(context.Background(), safeTransaction)
+		if err != nil {
+			log.Printf("执行交易失败: %v", err)
+			return
+		}
+
+		fmt.Printf("✅ 交易已执行!\n")
+		fmt.Printf("Transaction Hash: %s\n", result.Hash)
+	} else {
+		fmt.Printf("📋 交易已提交，等待更多签名 (需要 %d 个签名)\n", txDetail.ConfirmationsRequired)
+		fmt.Printf("Safe Transaction Hash: 0x%s\n", safeTxHash)
+	}
 }

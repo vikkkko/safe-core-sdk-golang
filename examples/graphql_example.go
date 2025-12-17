@@ -25,7 +25,7 @@ func main() {
 	// Get GraphQL endpoint from environment or use default
 	endpoint := os.Getenv("GRAPH_ENDPOINT")
 	if endpoint == "" {
-		endpoint = "https://api.studio.thegraph.com/query/103887/mvp/version/latest"
+		endpoint = "http://220.154.132.173:8000/subgraphs/name/mvp002"
 	}
 
 	fmt.Println("=== GraphQL Query Interactive CLI ===")
@@ -67,6 +67,7 @@ func showMenu() {
 	fmt.Println("  4. Query transaction info by hash (通过交易哈希获取详情)")
 	fmt.Println("  5. Query payment account token balances (查询付款账户代币余额)")
 	fmt.Println("  6. Query collection account token balances (查询收款账户代币余额)")
+	fmt.Println("  7. Query address relation summaries (查询地址转账关系汇总)")
 	fmt.Println("  0. Exit")
 	fmt.Println("===============================================")
 	fmt.Print("\nEnter your choice: ")
@@ -98,6 +99,8 @@ func runQuery(client *graphql.Client, choice string) {
 		queryPaymentAccountBalances(client)
 	case "6":
 		queryCollectionAccountBalances(client)
+	case "7":
+		queryAddressRelationSummaries(client)
 	default:
 		fmt.Println("Invalid choice.")
 	}
@@ -447,4 +450,50 @@ func printPaymentAllowances(allowances []graphql.PaymentAllowance) {
 			allowance.Amount.String(),
 		)
 	}
+}
+
+func queryAddressRelationSummaries(client *graphql.Client) {
+	fmt.Println("=== Query Address Relation Summaries (地址转账关系汇总) ===")
+	fmt.Println("查询某个地址向哪些地址转账过以及转账总额和次数")
+	fmt.Println()
+
+	fromAddress := prompt("From address (源地址)")
+	if !common.IsHexAddress(fromAddress) {
+		log.Printf("Error: Invalid from address")
+		return
+	}
+
+	ctx := context.Background()
+	summaries, err := client.GetAddressRelationPeriodSummaries(ctx, fromAddress)
+	if err != nil {
+		log.Printf("Failed to query address relation summaries: %v", err)
+		return
+	}
+
+	if len(summaries) == 0 {
+		fmt.Printf("\n❌ No transfer relationships found for address: %s\n", fromAddress)
+		fmt.Println("This address has not transferred tokens to any other addresses.")
+		return
+	}
+
+	fmt.Printf("\n✅ Found %d transfer relationship(s) for address: %s\n\n", len(summaries), fromAddress)
+	fmt.Println("═══════════════════════════════════════════════════════════════════════════════")
+	fmt.Printf("%-5s %-42s %-32s %s\n", "No.", "To Address (收款地址)", "Total Amount (总金额)", "Transfer Count (转账次数)")
+	fmt.Println("═══════════════════════════════════════════════════════════════════════════════")
+
+	for i, summary := range summaries {
+		fmt.Printf("%-5d %-42s %-32s %d\n",
+			i+1,
+			summary.ToAddress,
+			summary.TotalAmount.String(),
+			summary.TransferCount,
+		)
+	}
+
+	fmt.Println("═══════════════════════════════════════════════════════════════════════════════")
+	fmt.Printf("\n说明:\n")
+	fmt.Printf("- To Address: 收款地址\n")
+	fmt.Printf("- Total Amount: 总转账金额（以最小单位计，例如 wei）\n")
+	fmt.Printf("- Transfer Count: 转账次数\n")
+	fmt.Printf("\n这些记录按总金额降序排列，显示了源地址向各个地址的转账汇总。\n")
 }

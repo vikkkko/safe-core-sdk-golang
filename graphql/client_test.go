@@ -26,7 +26,7 @@ func TestNewDefaultClient(t *testing.T) {
 		t.Fatal("Expected client to be created")
 	}
 
-	expectedEndpoint := "https://api.studio.thegraph.com/query/103887/mvp/version/latest"
+	expectedEndpoint := "http://220.154.132.173:8000/subgraphs/name/mvp002"
 	if client.endpoint != expectedEndpoint {
 		t.Errorf("Expected endpoint %s, got %s", expectedEndpoint, client.endpoint)
 	}
@@ -151,5 +151,50 @@ func TestPaymentAllowance_UnmarshalJSON(t *testing.T) {
 
 	if allowance.Amount.String() != "9999999999999999999999" {
 		t.Errorf("Expected amount 9999999999999999999999, got %s", allowance.Amount.String())
+	}
+}
+
+func TestAddressRelationPeriodSummary_UnmarshalJSON(t *testing.T) {
+	jsonData := `{
+		"toAddress": "0x1234567890123456789012345678901234567890",
+		"totalAmount": "5000000000000000000000",
+		"transferCount": 15
+	}`
+
+	var summary AddressRelationPeriodSummary
+	err := json.Unmarshal([]byte(jsonData), &summary)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	if summary.ToAddress != "0x1234567890123456789012345678901234567890" {
+		t.Errorf("Expected toAddress 0x1234567890123456789012345678901234567890, got %s", summary.ToAddress)
+	}
+
+	if summary.TotalAmount.String() != "5000000000000000000000" {
+		t.Errorf("Expected totalAmount 5000000000000000000000, got %s", summary.TotalAmount.String())
+	}
+
+	if summary.TransferCount != 15 {
+		t.Errorf("Expected transferCount 15, got %d", summary.TransferCount)
+	}
+}
+
+func TestGetAddressRelationSummaries_InvalidAddress(t *testing.T) {
+	client := NewDefaultClient()
+	ctx := context.Background()
+
+	// Test with a valid address format but likely no data
+	fromAddress := "0x0000000000000000000000000000000000000000"
+
+	summaries, err := client.GetAddressRelationPeriodSummaries(ctx, fromAddress)
+	if err != nil {
+		t.Logf("Query failed (expected if network unavailable): %v", err)
+		return
+	}
+
+	// If query succeeds, summaries should be a valid slice (possibly empty)
+	if summaries == nil {
+		t.Error("Expected summaries to be non-nil slice")
 	}
 }

@@ -37,7 +37,7 @@ type Config struct {
 // DefaultConfig returns default GraphQL configuration
 func DefaultConfig() Config {
 	return Config{
-		Endpoint: "https://api.studio.thegraph.com/query/103887/mvp/version/latest",
+		Endpoint: "http://220.154.132.173:8000/subgraphs/name/mvp002",
 		Timeout:  30 * time.Second,
 	}
 }
@@ -87,13 +87,13 @@ func (c *Client) Query(ctx context.Context, query string, variables map[string]i
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	// Check for GraphQL errors
@@ -330,6 +330,49 @@ func (c *Client) GetPaymentAuthorizations(ctx context.Context, account string) (
 		Allowances: allowances,
 		Approvals:  approvals,
 	}, nil
+}
+
+// GetAddressRelationPeriodSummaries queries the relationship summaries between a source address and its transfer recipients
+// Parameters:
+//   - fromAddress: The source address to query transfer relationships for
+//
+// Returns:
+//   - List of summaries showing transfer amounts and counts to each recipient address
+func (c *Client) GetAddressRelationPeriodSummaries(ctx context.Context, fromAddress string) ([]AddressRelationPeriodSummary, error) {
+	accountID := normalizeAddress(fromAddress)
+	if accountID == "" {
+		return nil, fmt.Errorf("invalid from address: %s", fromAddress)
+	}
+
+	query := `
+		query GetAddressRelationPeriodSummaries($fromAddress: String!) {
+			addressRelationPeriodSummaries(
+				where: {fromAddress: $fromAddress}
+				orderBy: totalAmount
+				orderDirection: desc
+			) {
+				toAddress
+				totalAmount
+				transferCount
+			}
+		}
+	`
+
+	variables := map[string]interface{}{
+		"fromAddress": accountID,
+	}
+
+	respBody, err := c.Query(ctx, query, variables)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query address relation summaries: %w", err)
+	}
+
+	var response AddressRelationPeriodSummariesResponse
+	if err := json.Unmarshal(respBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal address relation summaries response: %w", err)
+	}
+
+	return response.Data.AddressRelationPeriodSummaries, nil
 }
 
 // Close releases any resources held by the client.

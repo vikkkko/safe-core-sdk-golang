@@ -298,6 +298,81 @@
   },
   {
     "type": "function",
+    "name": "createAndUpdatePaymentAccountController",
+    "inputs": [
+      {
+        "name": "paymentAccount",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "proxyFactory",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "safeSingleton",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "safeParams",
+        "type": "tuple",
+        "internalType": "struct IEnterpriseWalletTypes.SafeSetupParams",
+        "components": [
+          {
+            "name": "owners",
+            "type": "address[]",
+            "internalType": "address[]"
+          },
+          {
+            "name": "threshold",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "to",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "data",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "fallbackHandler",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "paymentToken",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "payment",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentReceiver",
+            "type": "address",
+            "internalType": "address payable"
+          },
+          {
+            "name": "saltNonce",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "emergencyFreeze",
     "inputs": [
       {

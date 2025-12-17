@@ -149,3 +149,17 @@ type GraphQLResponse struct {
 	Data   interface{}    `json:"data"`
 	Errors []GraphQLError `json:"errors,omitempty"`
 }
+
+// AddressRelationPeriodSummary represents the relationship summary between addresses
+type AddressRelationPeriodSummary struct {
+	ToAddress     string `json:"toAddress"`     // Address that received transfers
+	TotalAmount   BigInt `json:"totalAmount"`   // Total amount transferred
+	TransferCount int64  `json:"transferCount"` // Number of transfers
+}
+
+// AddressRelationPeriodSummariesResponse represents GraphQL response for address relation summaries
+type AddressRelationPeriodSummariesResponse struct {
+	Data struct {
+		AddressRelationPeriodSummaries []AddressRelationPeriodSummary `json:"addressRelationPeriodSummaries"`
+	} `json:"data"`
+}
